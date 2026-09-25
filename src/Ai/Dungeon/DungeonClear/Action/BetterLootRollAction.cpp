@@ -50,7 +50,7 @@ namespace
     }
 }
 
-bool DcLootRoll::IsVotablePendingRoll(Roll* roll, Player* bot)
+bool DcLootRoll::IsVotablePendingRoll(Roll const* roll, Player* bot)
 {
     if (!roll || !bot)
         return false;
@@ -117,7 +117,7 @@ bool DungeonClearBetterLootRollAction::Execute(Event event)
     // which erases the entry and deletes the Roll — so no Roll* may be read
     // after any vote has been cast.
     std::vector<std::pair<ObjectGuid, RollVote>> decided;
-    for (Roll* roll : group->GetRolls())
+    for (Roll const* roll : group->GetRolls())
     {
         // One predicate with the trigger — see DcLootRoll::IsVotablePendingRoll.
         // It also screens the roll CountRollVote would refuse, which this loop
@@ -188,7 +188,7 @@ bool DungeonClearBetterLootRollAction::IsFutureWearable(ItemTemplate const* prot
 
     // CanUseItem checks faction, class/race, skill and spell BEFORE level, so
     // this exact error means the level requirement is the only blocker.
-    return bot->BotCanUseItem(proto) == EQUIP_ERR_CANT_EQUIP_LEVEL_I;
+    return bot->CanUseItem(proto) == EQUIP_ERR_CANT_EQUIP_LEVEL_I;
 }
 
 RollVote DungeonClearBetterLootRollAction::CalculateFutureVote(ItemTemplate const* proto, int32 randomProperty)

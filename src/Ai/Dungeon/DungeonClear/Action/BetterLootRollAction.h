@@ -93,7 +93,7 @@ namespace DcLootRoll
     // rejects a loot object that exists and is empty. On an invalidated roll a
     // null Loot* means something else entirely, which is why validity is tested
     // first rather than inferred from the pointer.
-    bool IsVotablePendingRoll(Roll* roll, Player* bot);
+    bool IsVotablePendingRoll(Roll const* roll, Player* bot);
 }
 
 class DungeonClearBetterLootRollAction : public LootRollAction

@@ -2216,7 +2216,7 @@ bool DungeonClearLootRollPendingTrigger::IsActive()
     // mistaken for an empty window.
     std::uint64_t signature = 14695981039346656037ull;
     uint32 votable = 0;
-    for (Roll* roll : group->GetRolls())
+    for (Roll const* roll : group->GetRolls())
     {
         if (!DcLootRoll::IsVotablePendingRoll(roll, bot))
             continue;
