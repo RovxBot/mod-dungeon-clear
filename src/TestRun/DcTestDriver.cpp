@@ -194,7 +194,7 @@ namespace DcTestDriver
             WorldSession* session =
                 new WorldSession(accountId, "", 0, nullptr, SEC_PLAYER,
                                  EXPANSION_WRATH_OF_THE_LICH_KING, time_t(0),
-                                 LOCALE_enUS, 0, false, false, 0, true);
+                                 LOCALE_enUS, 0, false, false, 0);
 
             CharacterCreateInfo createInfo(name, RACE_HUMAN, CLASS_WARRIOR,
                                            GENDER_MALE, 0, 0, 0, 0, 0);
