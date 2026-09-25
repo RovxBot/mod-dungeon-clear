@@ -8,7 +8,9 @@
 #include "Player.h"
 #include "PlayerScript.h"
 #include "ScriptMgr.h"
+#include "ServerScript.h"
 #include "WorldScript.h"
+#include "WorldSession.h"
 
 #include "DungeonQueueFill/DcDungeonQueueFillManager.h"
 
@@ -54,28 +56,33 @@ public:
 
 // Answer the dungeon proposal for the bots this fill owns.
 //
-// OnPlayerbotPacketSent is the one hook that sees a packet addressed to a BOT.
-// WorldSession::SendPacket calls it before the `if (!m_Socket) return;` that
-// ends the journey for every socket-less playerbot session, so it is the only
-// place a module can watch what the core is telling a bot.
+// SERVERHOOK_ON_PACKET_SENT sees packets addressed to a headless bot before
+// WorldSession::SendPacket returns for the missing socket. It replaced the
+// PlayerbotScript-specific packet hook in the current Playerbots core.
 //
 // Why the fill answers at all, rather than trusting the bot to: see
 // DcDungeonQueueFillManager::OnBotProposal. In short, playerbots' `lfg accept`
 // gets exactly one chance per proposal — the AI tick that happens to be handed
 // the packet — and a bot that misses it is silently marked DENY 40 seconds
 // later, taking the whole party's proposal down with it.
-class DungeonClearQueueFillProposalScript : public PlayerbotScript
+class DungeonClearQueueFillProposalScript : public ServerScript
 {
 public:
     DungeonClearQueueFillProposalScript()
-        : PlayerbotScript("DungeonClearQueueFillProposalScript") {}
+        : ServerScript("DungeonClearQueueFillProposalScript", {
+            SERVERHOOK_ON_PACKET_SENT,
+        }) {}
 
-    void OnPlayerbotPacketSent(Player* player, WorldPacket const* packet) override
+    void OnPacketSent(WorldSession* session, WorldPacket const& packet) override
     {
-        if (!player || !packet || packet->GetOpcode() != SMSG_LFG_PROPOSAL_UPDATE)
+        if (!session || packet.GetOpcode() != SMSG_LFG_PROPOSAL_UPDATE)
             return;
 
-        DcDungeonQueueFillManager::Instance().OnBotProposal(player, *packet);
+        Player* const player = session->GetPlayer();
+        if (!player)
+            return;
+
+        DcDungeonQueueFillManager::Instance().OnBotProposal(player, packet);
     }
 };
 
