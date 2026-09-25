@@ -77,7 +77,10 @@ bool DcLootRoll::IsVotablePendingRoll(Roll const* roll, Player* bot)
     // corpse looted out from under a still-open roll window — makes
     // CountRollVote bail before it records anything, so a vote here can never
     // land and asking for one every tick is a livelock, not a retry.
-    if (Loot* loot = roll->getLoot())
+    // GetRolls() now exposes read-only roll pointers. getLoot() is only an
+    // accessor, but older core headers did not mark it const, so retain a
+    // local non-mutating view for that legacy signature.
+    if (Loot* loot = const_cast<Roll*>(roll)->getLoot())
         if (loot->items.empty())
             return false;
 
