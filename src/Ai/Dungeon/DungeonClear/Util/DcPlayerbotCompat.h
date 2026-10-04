@@ -51,6 +51,33 @@ class Player;
 
 namespace DcPlayerbotCompat
 {
+    namespace Detail
+    {
+        // PR #2592 renamed the session flag from IsBot to IsHeadless. Keep the
+        // current name first, then accept the stable branch's spelling.
+        template <typename Session>
+        auto IsClientlessSession(Session const* session, int)
+            -> decltype(session->IsHeadless())
+        {
+            return session->IsHeadless();
+        }
+
+        template <typename Session>
+        auto IsClientlessSession(Session const* session, long)
+            -> decltype(session->IsBot())
+        {
+            return session->IsBot();
+        }
+    }
+
+    // A headless Playerbots session has no game client, so movement such as a
+    // vehicle dismount must be completed by the server rather than gravity.
+    template <typename Session>
+    inline bool IsClientlessSession(Session const* session)
+    {
+        return session && Detail::IsClientlessSession(session, 0);
+    }
+
     // A bot whose master is itself: the human's own character on autopilot.
     // They share one GUID, so anything this bot does the player is credited
     // with — see the loot double-roll this module exists to suppress.

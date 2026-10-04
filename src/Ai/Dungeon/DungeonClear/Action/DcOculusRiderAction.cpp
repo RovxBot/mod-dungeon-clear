@@ -35,6 +35,7 @@
 #include "Ai/Dungeon/DungeonClear/Util/DcOculusDriverDecision.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcOculusFlightDecision.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcOculusPlan.h"
+#include "Ai/Dungeon/DungeonClear/Util/DcPlayerbotCompat.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcRun.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcTargeting.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcThrottle.h"
@@ -557,7 +558,7 @@ bool DungeonClearOculusRiderAction::Execute(Event /*event*/)
             float gap = -1.0f;
             // A clientless bot does not fall: set it down on the snapped floor it
             // was hovering LAND_HOVER above, rather than leave it standing in air.
-            if (!bot->GetVehicle() && onMesh && DcCoreCompat::IsClientless(bot->GetSession()))
+            if (!bot->GetVehicle() && onMesh && DcPlayerbotCompat::IsClientlessSession(bot->GetSession()))
             {
                 gap = bot->GetPositionZ() - snap.z;
                 if (gap > 0.5f)
