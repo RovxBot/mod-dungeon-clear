@@ -189,6 +189,35 @@ bool DungeonClearBetterLootRollAction::IsFutureWearable(ItemTemplate const* prot
     if (proto->RequiredLevel <= bot->GetLevel())
         return false;
 
+    // Relics first: the fork core's CanUseItem lets any class use any relic
+    // (only its BotCanUseItem, now gone, added these), and every relic is
+    // class-locked, so without them a paladin greeds an idol "to grow into".
+    // Upstream's CanUseItem already refuses them (AC #27530); harmless there.
+    if (proto->Class == ITEM_CLASS_ARMOR)
+    {
+        switch (proto->SubClass)
+        {
+            case ITEM_SUBCLASS_ARMOR_IDOL:
+                if (!bot->IsClass(CLASS_DRUID, CLASS_CONTEXT_EQUIP_RELIC))
+                    return false;
+                break;
+            case ITEM_SUBCLASS_ARMOR_TOTEM:
+                if (!bot->IsClass(CLASS_SHAMAN, CLASS_CONTEXT_EQUIP_RELIC))
+                    return false;
+                break;
+            case ITEM_SUBCLASS_ARMOR_LIBRAM:
+                if (!bot->IsClass(CLASS_PALADIN, CLASS_CONTEXT_EQUIP_RELIC))
+                    return false;
+                break;
+            case ITEM_SUBCLASS_ARMOR_SIGIL:
+                if (!bot->IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_EQUIP_RELIC))
+                    return false;
+                break;
+            default:
+                break;
+        }
+    }
+
     // CanUseItem checks faction, class/race, skill and spell BEFORE level, so
     // this exact error means the level requirement is the only blocker.
     return bot->CanUseItem(proto) == EQUIP_ERR_CANT_EQUIP_LEVEL_I;

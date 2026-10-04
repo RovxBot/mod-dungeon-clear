@@ -61,7 +61,7 @@ namespace DcCombatPurge
     // Global-tick sweep: for every bot running a clear, keep its run's
     // combat-blind no-progress clock and purge registered holders once that clock
     // goes stale. Cheap no-op when no run is active or the map has no rows.
-    // Driven from DungeonClearReaperScript::OnPlayerbotUpdate rather than a
+    // Driven from DungeonClearReaperScript::OnUpdate rather than a
     // trigger, because the deadlock parks bots on the COMBAT engine, where the
     // clear's non-combat triggers never get a tick — the same reason the status
     // pusher and the ZF stray-summon despawner live on the global tick.

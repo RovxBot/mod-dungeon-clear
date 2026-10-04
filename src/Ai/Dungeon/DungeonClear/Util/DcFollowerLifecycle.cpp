@@ -63,7 +63,7 @@ namespace
 {
     // GUIDs of players that currently carry a DC follow-tank MoveFollow
     // generator. Mutated from the follow-tank action (bot AI update) and read by
-    // the reaper (world update / OnPlayerbotUpdate); both run on the world
+    // the reaper (world update); both run on the world
     // thread today, but the set is tiny and the lock is uncontended, so guard it
     // anyway to stay correct if bot updates ever move off-thread.
     std::set<ObjectGuid> g_dcFollowingPlayers;

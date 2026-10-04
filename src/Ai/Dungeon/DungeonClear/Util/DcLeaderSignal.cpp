@@ -55,6 +55,7 @@
 #include "World.h"
 #include "Ai/Dungeon/DungeonClear/Data/DungeonBossInfo.h"
 #include "Ai/Dungeon/DungeonClear/Data/SealedEncounterRegistry.h"
+#include "Ai/Dungeon/DungeonClear/Data/Events/DungeonEventTables.h"
 #include "Ai/Dungeon/DungeonClear/Util/ChunkedPathfinder.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcEngageGeometry.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcTargeting.h"
@@ -765,8 +766,15 @@ bool DcLeaderSignal::GetLeaderCampHold(Player* bot, Position& campOut, bool& pas
     // A standing camp-safety release keeps the maneuver (the tank is still
     // dragging) but frees the party: still camped, no longer passive — the same
     // posture as holding at camp between pulls.
-    passiveOut = IsPullPhaseHolding(static_cast<uint32>(pull.phase)) &&
-                 !pull.partyReleased;
+    //
+    // A fresh scout aggro holds too: the leader's combat flag is up but the drag-back
+    // maneuver has not yet run its first combat tick to flip Idle -> Returning. See
+    // DcPullContext::scoutAggroMs. Not gated on partyReleased — that latch belongs to
+    // a previous maneuver until the next Transition clears it.
+    passiveOut = (IsPullPhaseHolding(static_cast<uint32>(pull.phase)) &&
+                  !pull.partyReleased) ||
+                 (leader->IsInCombat() &&
+                  pull.ScoutAggroHolding(getMSTime(), DC_PULL_SCOUT_AGGRO_HOLD_MS));
     return true;
 }
 bool DcLeaderSignal::IsLeaderCampFightActive(Player* bot)
@@ -810,8 +818,10 @@ namespace
         if (!DcRun::Of(ctx).enabled)
             return nullptr;
 
+        // A boxed room-clear pull (roomCampFight) anchors its party exactly like a
+        // scripted stage — see DcPullContext::AnchoredCampFight.
         DcPullContext const& pull = ctx->GetValue<DcPullContext&>(DcKey::PullContext)->Get();
-        if (pull.scriptedStage < 0 || !pull.HasCamp())
+        if (!pull.AnchoredCampFight() || !pull.HasCamp())
             return nullptr;
         return &pull;
     }
@@ -826,6 +836,11 @@ bool DcLeaderSignal::IsLeaderScriptedCampFight(Player* bot)
 {
     DcPullContext const* const pull = LeaderScriptedPull(bot);
     return pull && pull->phase == DcPullPhase::Engage;
+}
+bool DcLeaderSignal::IsLeaderRoomCampFight(Player* bot)
+{
+    DcPullContext const* const pull = LeaderScriptedPull(bot);
+    return pull && pull->roomCampFight && pull->phase == DcPullPhase::Engage;
 }
 bool DcLeaderSignal::IsLeaderFightAssistWanted(Player* bot)
 {
@@ -1548,3 +1563,79 @@ bool DcLeaderSignal::IsLeaderRazorgoreDriving(Player* bot)
     return GetMSTimeDiffToNow(st.razorDrivingMs) <= 3000;
 }
 
+
+// --- Karazhan chess ----------------------------------------------------------
+//
+// The conductor's freshness window: it ticks every 500ms while the game is on, so
+// five seconds is ten missed ticks — long enough to ride out a busy map update,
+// short enough that a run switched off releases its members almost at once.
+namespace
+{
+    constexpr uint32 CHESS_FRESH_MS = 5000;
+
+    DcChessRunState* ChessConductorOf(Player* bot)
+    {
+        if (!bot || bot->GetMapId() != DcKarazhan::MAP)
+            return nullptr;
+        Player* owner = DcLeaderSignal::FindRunOwner(bot);
+        if (!owner)
+            return nullptr;
+        PlayerbotAI* ownerAI = GET_PLAYERBOT_AI(owner);
+        if (!ownerAI)
+            return nullptr;
+        DcRunState& st = DcRun::Of(ownerAI->GetAiObjectContext());
+        if (!st.enabled || st.paused || !st.chess.armed || !st.chess.drivingMs)
+            return nullptr;
+        if (DcChessConductor::Terminal(static_cast<DcChessConductor::State>(st.chess.state)))
+            return nullptr;
+        if (GetMSTimeDiffToNow(st.chess.drivingMs) > CHESS_FRESH_MS)
+            return nullptr;
+        return &st.chess;
+    }
+}
+
+ObjectGuid DcLeaderSignal::GetChessAssignment(Player* bot)
+{
+    DcChessRunState const* ch = ChessConductorOf(bot);
+    if (!ch)
+        return ObjectGuid::Empty;
+    uint64 const me = bot->GetGUID().GetRawValue();
+    for (DcChess::Assignment const& a : ch->assign)
+        if (a.bot == me)
+            return ObjectGuid(a.piece);
+    return ObjectGuid::Empty;
+}
+
+bool DcLeaderSignal::IsLeaderChessArmed(Player* bot, uint8* stateOut)
+{
+    DcChessRunState const* ch = ChessConductorOf(bot);
+    if (!ch)
+        return false;
+    if (stateOut)
+        *stateOut = ch->state;
+    return true;
+}
+
+uint32 DcLeaderSignal::GetChessSeat(Player* bot)
+{
+    if (!bot)
+        return 0;
+    uint64 const me = bot->GetGUID().GetRawValue();
+    if (DcChessRunState const* ch = ChessConductorOf(bot))
+        for (size_t i = 0; i < ch->seats.size(); ++i)
+            if (ch->seats[i] == me)
+                return static_cast<uint32>(i % DcKarazhan::SIDELINE_SLOTS);
+    return static_cast<uint32>(bot->GetGUID().GetCounter() % DcKarazhan::SIDELINE_SLOTS);
+}
+
+void DcLeaderSignal::ReportChessRefusal(Player* bot, ObjectGuid piece)
+{
+    DcChessRunState* ch = ChessConductorOf(bot);
+    if (!ch || piece.IsEmpty())
+        return;
+    uint64 const me = bot->GetGUID().GetRawValue();
+    for (DcChess::Assignment const& a : ch->refused)
+        if (a.bot == me && a.piece == piece.GetRawValue())
+            return;
+    ch->refused.push_back({ me, piece.GetRawValue() });
+}
