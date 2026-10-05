@@ -85,7 +85,6 @@ public:
         DcDungeonQueueFillManager::Instance().OnBotProposal(player, packet);
     }
 };
-#endif
 
 // Worldserver shutdown. A fill in flight owns logged-in bots sitting in the
 // LFG queue; without this they are saved to the DB mid-queue and come back next
