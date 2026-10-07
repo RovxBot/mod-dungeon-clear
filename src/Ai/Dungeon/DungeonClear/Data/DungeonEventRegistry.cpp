@@ -58,6 +58,15 @@ EventBuilder& EventBuilder::Persistent()
     return *this;
 }
 
+EventBuilder& EventBuilder::CompleteWhenGOState(uint32 goEntry, uint32 wantState,
+                                                float searchRadius)
+{
+    _ev.completeGoEntry = goEntry;
+    _ev.completeGoState = wantState;
+    _ev.completeGoRadius = searchRadius;
+    return *this;
+}
+
 EventBuilder& EventBuilder::OwnsThePull()
 {
     _ev.ownsThePull = true;

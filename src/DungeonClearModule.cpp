@@ -657,6 +657,50 @@ public:
     }
 };
 
+// WORKAROUND for Stratholme's (map 329) gate-trap critters falling out of the
+// world. instance_stratholme's DoSpawnPlaguedCritters summons 30 Plagued Rats /
+// Insects / Maggots at random points within 8yd of the triggering player, at the
+// player's z+1, with no ground check; in the Scarlet-side alley (3612,-3335) some
+// land inside wall geometry and drop ~66yd onto a floor under Festival Lane. They
+// are summoned already attacking, so the tank chases them through the floor, the
+// party follows, and the run ends trapped ~70yd under Hearthsinger Forresten
+// ("Stuck near" / "route dead-ends" — five of five such failures in
+// sk-20261003-174711 started with a critter 66-68yd below its summon point).
+//
+// Surgical: only these three critter entries on map 329, and only once one sits
+// more than STRAT_CRITTER_FALL_YD below its home (= summon point). A critter on
+// the street never drifts more than a few yards vertically; there is nothing to
+// fight down there.
+class DungeonClearStratFallenCritterScript : public AllCreatureScript
+{
+public:
+    DungeonClearStratFallenCritterScript() : AllCreatureScript("DungeonClearStratFallenCritterScript") {}
+
+    void OnAllCreatureUpdate(Creature* creature, uint32 /*diff*/) override
+    {
+        if (!creature || creature->GetMapId() != 329 /*Stratholme*/)
+            return;
+        uint32 const entry = creature->GetEntry();
+        if (entry != 10441 /*Plagued Rat*/ && entry != 10461 /*Plagued Insect*/ &&
+            entry != 10536 /*Plagued Maggot*/)
+            return;
+        if (!creature->IsSummon() || !creature->IsAlive() || !DcModule::IsEnabled())
+            return;
+        constexpr float STRAT_CRITTER_FALL_YD = 20.0f;
+        float const homeZ = creature->GetHomePosition().GetPositionZ();
+        if (creature->GetPositionZ() >= homeZ - STRAT_CRITTER_FALL_YD)
+            return;
+
+        LOG_INFO("playerbots.dungeonclear",
+                 "[DC] despawning fallen Stratholme critter {} (entry {}) at "
+                 "({:.1f},{:.1f},{:.1f}), {:.1f}yd below its summon point",
+                 creature->GetGUID().ToString(), entry, creature->GetPositionX(),
+                 creature->GetPositionY(), creature->GetPositionZ(),
+                 homeZ - creature->GetPositionZ());
+        creature->DespawnOrUnsummon();
+    }
+};
+
 // WORKAROUND for the Sunken Temple (map 109) Shade of Eranikus event holding the
 // party in combat forever — the same class of bug as the Zul'Farrak stray-summon
 // hook above, and likewise unfixable for us in core. instance_sunken_temple.cpp's
@@ -741,6 +785,7 @@ void AddSC_dungeon_clear_module()
     new DungeonClearLeaderFirstHitScript();
     new DungeonClearReaperScript();
     new DungeonClearZfStraySummonScript();
+    new DungeonClearStratFallenCritterScript();
     new DungeonClearEranikusCombatReleaseScript();
 
     // `.dc test` harness: receive each changed STATUS frame for the monitored

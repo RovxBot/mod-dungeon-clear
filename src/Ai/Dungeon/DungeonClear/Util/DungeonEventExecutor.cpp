@@ -1476,6 +1476,21 @@ EventDriveOutcome DungeonEventExecutor::Drive(Player* bot, AiObjectContext* cont
     if (prog.stepIndex >= ev.steps.size())
         return EventDriveOutcome::Completed;
 
+    if (bot && ev.completeGoEntry)
+    {
+        float const search = ev.completeGoRadius > 0.0f ? ev.completeGoRadius : DC_EVENT_GO_SEARCH;
+        GameObject* go = bot->FindNearestGameObject(ev.completeGoEntry, search);
+        if (go && static_cast<uint32>(go->GetGoState()) == ev.completeGoState)
+        {
+            LOG_INFO("playerbots.dungeonclear",
+                     "[DC:{}] event '{}' completed at step {}: GO {} reads state {}",
+                     bot->GetName(), ev.name, prog.stepIndex, ev.completeGoEntry,
+                     ev.completeGoState);
+            prog.stepIndex = static_cast<uint32>(ev.steps.size());
+            return EventDriveOutcome::Completed;
+        }
+    }
+
     EventStep const& active = ev.steps[prog.stepIndex];
     StepResult const result = RunStep(bot, context, active, prog, now);
 
