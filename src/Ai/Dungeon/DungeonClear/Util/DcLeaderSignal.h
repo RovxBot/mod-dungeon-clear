@@ -194,6 +194,21 @@ public:
     // DungeonClearAssistCamp{,Combat}Trigger.
     static bool IsLeaderFightAssistWanted(Player* bot);
 
+    // Threat lead, damage side. NoteLeaderHit is fed by the damage hook: the
+    // first time an enabled DC leader damages a non-player in its current fight,
+    // it stamps DcRunState::leaderFirstHitMs. ShouldHoldDpsDamage is read by the
+    // multiplier for every damaging action: true while `bot` (a DPS follower in
+    // an active run) must wait out the lead from that first hit — see
+    // DungeonClearMath::ShouldHoldThreatLead.
+    static void NoteLeaderHit(Player* attacker);
+    // The leader's combat flag just went 0->1 (PlayerScript enter-combat hook):
+    // a NEW fight, so the lead clock restarts. LeaderCombatSince maintains its
+    // stamp lazily and misses a short out-of-combat gap between chained packs,
+    // which left the previous pack's first hit standing and the lead "already
+    // run" for the next one (Pull Lab O2, 19 of 21 remaining violations).
+    static void NoteLeaderEnterCombat(Player* player);
+    static bool ShouldHoldDpsDamage(Player* bot);
+
     // The MIRROR of IsLeaderFightAssistWanted for the LEADER itself: true when
     // `bot` IS the elected leader tank, is OUT of combat on an active (enabled,
     // unpaused) run, has no engage target of its own in sight, yet a groupmate is

@@ -553,6 +553,20 @@ namespace DungeonClearMath
     // the bypass), and `leadMs` == 0 (feature off). The game-state read (leader
     // combat stamp, healer role, tank HP, this bot's combat flag) stays in
     // DcLeaderSignal::IsLeaderFightAssistWanted.
+    // Threat-lead DAMAGE hold (pure — gtested). True when a DPS follower must not
+    // deal damage yet: the leader's fight is live (`combatSinceMs` != 0) and less
+    // than `leadMs` has passed since the leader's FIRST HIT (`firstHitMs`). If the
+    // leader has not landed a hit, the hold lasts at most `leadMs + noHitCapMs`
+    // from the combat flag, so a tank that pulls with a taunt or is stunned on the
+    // opener cannot freeze the party. Never holds an `exempt` bot (the tank), a
+    // follower something is attacking (`beingAttacked` — self-defence), a tank
+    // below `panicHpPct` (<= 0 disables that bypass), or with `leadMs` == 0.
+    // ShouldReleaseFollower below gates DC's own assist MOVEMENT; this gates the
+    // damage every action can do, stock ones included.
+    bool ShouldHoldThreatLead(bool exempt, bool beingAttacked, std::uint32_t combatSinceMs,
+                              std::uint32_t firstHitMs, std::uint32_t now, std::uint32_t leadMs,
+                              std::uint32_t noHitCapMs, float tankHealthPct, float panicHpPct);
+
     bool ShouldReleaseFollower(bool isHealer, bool alreadyInCombat,
                                std::uint32_t combatSinceMs,
                                std::uint32_t now, std::uint32_t leadMs,

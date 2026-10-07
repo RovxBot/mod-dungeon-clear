@@ -350,6 +350,8 @@ public:
             return;
 
         DcPullBrake::OnEnterCombat(player);
+        // Same 0->1 edge: a new fight restarts the threat-lead clock.
+        DcLeaderSignal::NoteLeaderEnterCombat(player);
         // Same hook, second reader: `enemy` was discarded here for as long as this
         // script has existed, and it is the only record anywhere of what STARTED a
         // fight. See DcFirstContact.h for what that cost.
@@ -476,6 +478,26 @@ public:
         Player* player = victim->ToPlayer();
         if (DcSpectator::IsActive(player))
             DcSpectator::Stop(player);
+    }
+};
+
+// Threat lead: stamp the DC leader's first hit of each fight, which the damage
+// hold for DPS followers measures from (DcLeaderSignal::NoteLeaderHit). Cheap for
+// every other hit in the world: a player check, an AI lookup, one flag test.
+class DungeonClearLeaderFirstHitScript : public UnitScript
+{
+public:
+    DungeonClearLeaderFirstHitScript()
+        : UnitScript("DungeonClearLeaderFirstHitScript", true, {
+            UNITHOOK_ON_DAMAGE
+        }) {}
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        if (!damage || !attacker || !victim || victim->IsPlayer() || !DcModule::IsEnabled())
+            return;
+        if (Player* player = attacker->ToPlayer())
+            DcLeaderSignal::NoteLeaderHit(player);
     }
 };
 
@@ -716,6 +738,7 @@ void AddSC_dungeon_clear_module()
     new DungeonClearSpectatorMoverBeginScript();
     new DungeonClearSpectatorPlayerScript();
     new DungeonClearSpectatorDeathGuardScript();
+    new DungeonClearLeaderFirstHitScript();
     new DungeonClearReaperScript();
     new DungeonClearZfStraySummonScript();
     new DungeonClearEranikusCombatReleaseScript();

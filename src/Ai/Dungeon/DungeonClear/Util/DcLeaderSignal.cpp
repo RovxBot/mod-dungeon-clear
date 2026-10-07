@@ -192,6 +192,7 @@ namespace
         if (!leader->IsInCombat())
         {
             run.leaderCombatSinceMs = 0;
+            run.leaderFirstHitMs = 0;
             return 0;
         }
         if (run.leaderCombatSinceMs != 0)
@@ -970,6 +971,65 @@ bool DcLeaderSignal::IsLeaderFightAssistWanted(Player* bot)
         PlayerbotAI::IsHeal(bot), bot->IsInCombat(), combatSince, getMSTime(), leadMs,
         leader->GetHealthPct(), panicHp);
 }
+void DcLeaderSignal::NoteLeaderHit(Player* attacker)
+{
+    if (!attacker || !attacker->IsInCombat())
+        return;
+    PlayerbotAI* ai = GET_PLAYERBOT_AI(attacker);
+    if (!ai)
+        return;
+    DcRunState& run = DcRun::Of(ai);
+    // `enabled` is leader-owned: followers never set it, so this is the leader.
+    if (!run.enabled || run.paused)
+        return;
+    // Stamp the fight start first, so a hit is never older than its own fight.
+    uint32 const since = LeaderCombatSince(attacker);
+    if (run.leaderFirstHitMs != 0 && run.leaderFirstHitMs >= since)
+        return;
+    uint32 const now = getMSTime();
+    run.leaderFirstHitMs = now != 0 ? now : 1u;
+}
+
+void DcLeaderSignal::NoteLeaderEnterCombat(Player* player)
+{
+    PlayerbotAI* ai = player ? GET_PLAYERBOT_AI(player) : nullptr;
+    if (!ai)
+        return;
+    DcRunState& run = DcRun::Of(ai);
+    if (!run.enabled)
+        return;  // leader-owned flag: only the DC leader is stamped
+    uint32 const now = getMSTime();
+    run.leaderCombatSinceMs = now != 0 ? now : 1u;
+    run.leaderFirstHitMs = 0;
+}
+
+bool DcLeaderSignal::ShouldHoldDpsDamage(Player* bot)
+{
+    if (!bot || !bot->IsAlive())
+        return false;
+    Player* leader = FindLeaderTank(bot);
+    if (!leader || leader == bot)
+        return false;
+    PlayerbotAI* leaderAI = GET_PLAYERBOT_AI(leader);
+    if (!leaderAI)
+        return false;
+    DcRunState& run = DcRun::Of(leaderAI);
+    if (!run.enabled || run.paused)
+        return false;
+    uint32 const since = LeaderCombatSince(leader);
+    uint32 firstHit = run.leaderFirstHitMs;
+    if (firstHit != 0 && firstHit < since)
+        firstHit = 0;  // a stamp from the previous fight
+    // Only the tank is exempt. A healer's DAMAGE spells wait too (a resto
+    // shaman's shock opened 0.0s after the tank's hit); its heals are never
+    // damaging actions, so healing is untouched.
+    bool const exempt = PlayerbotAI::IsTank(bot);
+    return DungeonClearMath::ShouldHoldThreatLead(
+        exempt, !bot->getAttackers().empty(), since, firstHit, getMSTime(),
+        uint32(DcSettings::GetFloat(leader, "PullPlayerReleaseDelay") * 1000.0f), DC_THREAT_LEAD_NO_HIT_CAP_MS,
+        leader->GetHealthPct(), DcSettings::GetFloat(leader, "PullThreatLeadPanicHp"));
+}
+
 bool DcLeaderSignal::IsLeaderShouldAssistFight(Player* bot)
 {
     // The leader-side mirror of IsLeaderFightAssistWanted. The followers' gate

@@ -25,8 +25,9 @@ public:
 // in the non-combat strategy because the bot runs its combat engine the instant it
 // aggros. Resident on every bot's combat engine but inert unless that bot is the
 // leader and mid-pull, or a follower assisting the tank. Its ONE multiplier
-// (DungeonClearCombatMultiplier) touches only the stock "drop target" so the
-// flip-early assist can hold the combat engine; nothing else in combat is altered.
+// (DungeonClearCombatMultiplier) touches the stock "drop target" so the
+// flip-early assist can hold the combat engine, and holds a DPS follower's damage
+// for the threat lead; nothing else in combat is altered.
 class DungeonClearCombatStrategy : public Strategy
 {
 public:

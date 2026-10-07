@@ -251,7 +251,10 @@ namespace DcLabOracles
             auto premature = [&](std::uint64_t attacker, std::uint64_t mob, std::uint32_t t,
                                  char const* how) -> bool
             {
-                if (attacker == ix.tank || ix.IsHuman(attacker) || !ix.IsParty(attacker) || ix.IsParty(mob))
+                // Any tank-role member opens freely: an off-tank's taunt or Shield
+                // Slam IS threat, not a DPS opener (Karazhan 10-mans).
+                if (attacker == ix.tank || ix.Role(attacker) == "tank" || ix.IsHuman(attacker) ||
+                    !ix.IsParty(attacker) || ix.IsParty(mob))
                     return false;
                 Frame const* f = ix.FrameAt(t);
                 if (f && f->dc.valid && f->dc.partyReleased)

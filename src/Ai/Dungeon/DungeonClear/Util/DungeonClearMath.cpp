@@ -431,6 +431,20 @@ float DungeonClearMath::PullTagStopDistance(float aggroRange, float meleeReach,
     return stop;
 }
 
+bool DungeonClearMath::ShouldHoldThreatLead(bool exempt, bool beingAttacked, std::uint32_t combatSinceMs,
+                                            std::uint32_t firstHitMs, std::uint32_t now, std::uint32_t leadMs,
+                                            std::uint32_t noHitCapMs, float tankHealthPct, float panicHpPct)
+{
+    if (exempt || beingAttacked || leadMs == 0 || combatSinceMs == 0)
+        return false;
+    if (panicHpPct > 0.0f && tankHealthPct < panicHpPct)
+        return false;
+    // Guard the unsigned subtractions against a stamp a tick ahead of `now`.
+    if (firstHitMs != 0)
+        return now < firstHitMs || now - firstHitMs < leadMs;
+    return now < combatSinceMs || now - combatSinceMs < leadMs + noHitCapMs;
+}
+
 bool DungeonClearMath::ShouldReleaseFollower(bool isHealer, bool alreadyInCombat,
                                              std::uint32_t combatSinceMs,
                                              std::uint32_t now, std::uint32_t leadMs,

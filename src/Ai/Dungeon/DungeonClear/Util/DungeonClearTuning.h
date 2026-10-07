@@ -184,6 +184,12 @@ constexpr uint32 DC_PULL_ADVANCE_STANDDOWN_MAX_MS = 30000;
 // tank fight alone.
 constexpr uint32 DC_PULL_SCOUT_AGGRO_HOLD_MS = 2000;
 
+// Threat-lead damage hold, when the leader has not landed a hit yet: DPS stay
+// held at most PullPlayerReleaseDelay + this from the leader's combat flag.
+// Bounds the hold for a tank that opened with a taunt / pull spell that deals
+// no damage, or was stunned on the opener. See ShouldHoldThreatLead.
+constexpr uint32 DC_THREAT_LEAD_NO_HIT_CAP_MS = 2500;
+
 // How long a camp write by the pull machinery (prospective publish, commit,
 // dynamic seed, unplanned-aggro fresh camp) counts as "fresh". While fresh, the
 // pull action owns the camp and Advance's scout camp-trailing stands down; once
