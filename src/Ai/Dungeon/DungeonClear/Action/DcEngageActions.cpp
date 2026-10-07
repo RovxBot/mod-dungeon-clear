@@ -1957,6 +1957,18 @@ bool DcObjectiveArriveAction::Execute(Event /*event*/)
     if (!next.has_value() || next->kind != DungeonAnchorKind::Objective)
         return false;
 
+    // The trigger that queued this action judged arrival against the objective
+    // `next` named THEN. A queued action can run a tick or two later, after the
+    // previous objective latched and NextDungeonBoss moved on — and without this
+    // re-check it drives the NEW objective's event from wherever the tank stands.
+    // Sunken Temple, sk-20261003-174711: one Atal'ai Defender latched, the next
+    // defender's event started 70-90yd from it, its 60yd KillCreature gate found
+    // nothing alive and reported Done, and the objective latched unfought. Only
+    // five of six defenders died, the forcefield never dropped, and both runs
+    // timed out no_progress in front of Jammal'an.
+    if (!DungeonEventExecutor::ObjectiveArrived(bot, context, *next))
+        return false;
+
     // We own the leader's tick for as long as this objective runs — including
     // event steps that walk the tank a long way (Durnholde's barrels are ~170yd of
     // courtyard). Keep the party's camp trailing us, exactly as the advance rung

@@ -21,6 +21,7 @@
 #include "Player.h"
 #include "SharedDefines.h"
 #include "Ai/Dungeon/DungeonClear/Data/DcEventDoorRegistry.h"
+#include "Ai/Dungeon/DungeonClear/Data/DungeonBossInfo.h"
 #include "Ai/Dungeon/DungeonClear/Util/ChunkedPathfinder.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcDoorIndex.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcEngageGeometry.h"
@@ -148,6 +149,50 @@ ObjectGuid DungeonClearBlockingDoorValue::Calculate()
     if (!path.reachable || path.segments.empty())
         return ObjectGuid::Empty;
 
+    // Whatever we last flagged is no longer supported by evidence: drop it and
+    // end the door-blocked action's stall window rather than leaving a stale
+    // GUID for it to keep parking on.
+    auto const dropFlag = [&]()
+    {
+        if (!_lastFlagged.IsEmpty())
+        {
+            _lastFlagged = ObjectGuid::Empty;
+            context->GetValue<DcApproachState&>(DcKey::ApproachState)
+                ->Get()
+                .ClearDoorStall();
+        }
+        ReleaseDoorOwnedStall(context, bot);
+        return ObjectGuid::Empty;
+    };
+
+    // CRITICAL #0: the cached route must be the route to the CURRENT target.
+    // It is rebuilt only when Advance next runs EnsureLongPath, and Advance
+    // yields for the whole of a fight or a rest — so after an objective
+    // completes, the previous objective's route stays cached under the new
+    // target for as long as the party is busy. It says nothing about the
+    // corridor to the new target.
+    //
+    // Sunken Temple, sk-20261003-174711 (5 runs, all 21/21): the tank walks in
+    // through the Sanctum's east gate to use the Egg, the event shuts both gates
+    // (149432/149433) behind the party, and the target becomes the Avatar
+    // objective at the same room centre. Advance yields through the wave fight;
+    // the tank drifts 31yd from centre, the scan reads the Egg route — the one
+    // that came in through the now-shut gate — and flags the gate 20-33yd away
+    // as corridor-blocking. Script-only, so the run auto-paused mid-encounter
+    // and died on the 60s pause watchdog with the flames half doused.
+    std::optional<DungeonBossInfo> const next =
+        AI_VALUE(std::optional<DungeonBossInfo>, DcKey::NextDungeonBoss);
+    if (next.has_value() &&
+        context->GetValue<DcApproachState&>(DcKey::ApproachState)->Get().longPathTargetEntry !=
+            next->entry)
+    {
+        LOG_DEBUG("playerbots.dungeonclear",
+                  "[DC:{}] blocking-door: cached route is for a previous target "
+                  "(now {}) -> corridor unknown, nothing flagged",
+                  bot->GetName(), next->name);
+        return dropFlag();
+    }
+
     // Build a series of 2D segments tracing the corridor AHEAD of the bot,
     // clipped to DOOR_LOOK_AHEAD yards. Anything past the look-ahead doesn't
     // count — by the time the bot walks there, the value will re-evaluate.
@@ -239,19 +284,8 @@ ObjectGuid DungeonClearBlockingDoorValue::Calculate()
                             (pts[cursor].y - botY) * (pts[cursor].y - botY) +
                             (pts[cursor].z - botZ) * (pts[cursor].z - botZ)),
                   uint32(cursor), uint32(pts.size()));
-        // Same bookkeeping as a corridor that has genuinely cleared: whatever we
-        // last flagged is no longer supported by evidence, so drop it and end the
-        // door-blocked action's stall window rather than leaving a stale GUID for
-        // it to keep parking on.
-        if (!_lastFlagged.IsEmpty())
-        {
-            _lastFlagged = ObjectGuid::Empty;
-            context->GetValue<DcApproachState&>(DcKey::ApproachState)
-                ->Get()
-                .ClearDoorStall();
-        }
-        ReleaseDoorOwnedStall(context, bot);
-        return ObjectGuid::Empty;
+        // Same bookkeeping as a corridor that has genuinely cleared.
+        return dropFlag();
     }
 
     float prevX = botX;
