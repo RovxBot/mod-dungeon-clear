@@ -160,7 +160,7 @@ namespace DungeonClearMath
     // between two aim points up to `lag + dist` apart. On a ramp the backward leg
     // is a walk down the incline and the forward leg climbs it again, so the slope
     // sets the amplitude: the reported "bots ping-pong on ramps". Live at the
-    // shipped AiPlayerbot.FollowDistance of 1.5 the leash is 3.5 and the crumbs
+    // shipped Playerbots.FollowDistance of 1.5 the leash is 3.5 and the crumbs
     // sit at 1.5 / 4.5 / 7.5 / 10.5 — three of the four slots retreat.
     //
     // The invariant, stated generally: a rung must not move the bot AWAY from the
@@ -458,7 +458,7 @@ namespace DungeonClearMath
     // up — the way it arrives at a boss — rather than merely "not resting".
     //
     // The ordinary between-pulls floors do not deliver that. They are
-    // min(90, AiPlayerbot.AlmostFullHealth) HP and min(75, AiPlayerbot.HighMana)
+    // min(90, Playerbots.AlmostFullHealth) HP and min(75, Playerbots.HighMana)
     // mana, which on stock config is 85/65, and 65% healer mana is thin for a
     // five-elite heroic pack that contains its own healer. Live
     // (tr-20260805-191834-3): the party reported "Shannon (low mana), Erinerice

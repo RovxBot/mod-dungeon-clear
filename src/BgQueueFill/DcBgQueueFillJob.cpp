@@ -21,6 +21,7 @@
 #include "ObjectAccessor.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -515,7 +516,7 @@ void DcBgQueueFillJob::TickPlanning()
     spec.ilvl = static_cast<std::int32_t>(DcSettings::GetUInt(ObjectGuid::Empty, "BgQueueFill.GearIlvl"));
     spec.quality = DcSettings::GetUInt(ObjectGuid::Empty, "BgQueueFill.GearQuality");
     DcTestGearTiers::Resolved const gear = DcTestGearTiers::Resolve(
-        spec, sPlayerbotAIConfig.autoGearScoreLimit, sPlayerbotAIConfig.autoGearQualityLimit);
+        spec, DC_PB_CONFIG(AutoGearScoreLimit, autoGearScoreLimit), DC_PB_CONFIG(AutoGearQualityLimit, autoGearQualityLimit));
     _gearIlvl = gear.ilvl;
     _gearQuality = gear.quality;
     _gearScoreLimit = gear.ilvl == 0 ? 0 : PlayerbotFactory::CalcMixedGearScore(gear.ilvl, gear.quality);
@@ -826,7 +827,7 @@ bool DcBgQueueFillJob::TickSlotProvisioning(std::size_t i)
         if (!RedrawSlot(i))
             FailSlot(i, std::string("no premade spec template matching '") + slot.plan.specName +
                             "' for " + DcBotProvisioning::ClassToken(slot.plan.classId) +
-                            " (AiPlayerbot.PremadeSpecName.*)");
+                            " (Playerbots.PremadeSpecName.*)");
         return false;
     }
 

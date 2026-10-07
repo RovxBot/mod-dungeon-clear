@@ -74,6 +74,7 @@
 #include "Playerbots.h"
 #include "DcActionShared.h"
 #include "Ai/Dungeon/DungeonClear/DcValueKeys.h"
+#include "Util/DcPlayerbotsConfig.h"
 
 using namespace DcActionShared;
 
@@ -402,7 +403,7 @@ bool DungeonClearFollowTankAction::Execute(Event /*event*/)
         if (mm && mm->GetCurrentMovementGeneratorType() == FOLLOW_MOTION_TYPE)
             mm->Clear();
 
-        float const riderDist = std::min<float>(sPlayerbotAIConfig.followDistance, 6.0f);
+        float const riderDist = std::min<float>(DC_PB_CONFIG(FollowDistance, followDistance), 6.0f);
         if (bot->GetExactDist(tank) <= riderDist + kTrailArrival)
             return false;
 
@@ -625,7 +626,7 @@ bool DungeonClearFollowTankAction::Execute(Event /*event*/)
     // Tighter cluster than default. Keeps followers in healer LOS and out
     // of mob aggro-radius arcs during the advance. Default followDistance
     // (~10yd) had them strung out by the time the tank engaged.
-    float const dist = std::min<float>(sPlayerbotAIConfig.followDistance, 6.0f);
+    float const dist = std::min<float>(DC_PB_CONFIG(FollowDistance, followDistance), 6.0f);
 
     // Centered trail-follow. Stock Follow() / MoveFollow re-paths to the follow
     // slot through the core PathGenerator, which returns Detour's taut, wall-
@@ -903,7 +904,7 @@ bool DungeonClearCampHoldActionBase::Execute(Event /*event*/)
     {
         Unit* const healTarget = AI_VALUE(Unit*, DcKey::Stock::PartyToHeal);
         uint8 const lowestPct = AI_VALUE2(uint8, DcKey::Stock::Health, DcKey::Stock::PartyToHeal);
-        if (healTarget && lowestPct < sPlayerbotAIConfig.almostFullHealth)
+        if (healTarget && lowestPct < DC_PB_CONFIG(AlmostFullHealth, almostFullHealth))
         {
             float const healRange = botAI->GetRange("heal");
             bool const canCast = bot->GetExactDist(healTarget) <= healRange &&

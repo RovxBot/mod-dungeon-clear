@@ -91,7 +91,7 @@ bool DcTestRunManager::Start(Player* gm, std::string const& dungeonToken,
                     "max concurrent test runs reached (" + std::to_string(maxConcurrent) +
                     ") — .dc test stop <run> first");
 
-    // No AiPlayerbot.MaxAddedBots check: the harness's own adds are exempt
+    // No Playerbots.MaxAddedBots check: the harness's own adds are exempt
     // from it (see DcTestRunJob::Create), so it no longer bounds how many runs
     // can be in flight.
 
@@ -211,7 +211,7 @@ bool DcTestRunManager::StartRoster(Player* gm, std::string const& dungeonToken,
                     ") — .dc test stop <run> first");
 
     // Roster members log in masterless (AddPlayerBot with masterAccountId 0),
-    // which AiPlayerbot.MaxAddedBots never applied to in the first place.
+    // which Playerbots.MaxAddedBots never applied to in the first place.
 
     DcTestRoster::Result const parsed = DcTestRoster::Parse(partySpec);
     if (parsed.kind != DcTestRoster::Kind::Ok)

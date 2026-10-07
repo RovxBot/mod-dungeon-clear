@@ -100,7 +100,7 @@ public:
     // stored in the record so the comp can be replayed.
     //
     // `gear` is the run's own gear ceiling (DcTestGearTiers::Spec); a default
-    // Spec means "whatever AiPlayerbot.AutoGearScoreLimit / AutoGearQualityLimit
+    // Spec means "whatever Playerbots.AutoGearScoreLimit / AutoGearQualityLimit
     // say", which is what every run did before the option existed. It is
     // resolved against the conf ONCE here, so a mid-run `.reload config` cannot
     // change what a run was geared to.

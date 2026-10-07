@@ -75,6 +75,7 @@
 #include "Playerbots.h"
 #include "DcActionShared.h"
 #include "Ai/Dungeon/DungeonClear/DcValueKeys.h"
+#include "Util/DcPlayerbotsConfig.h"
 
 namespace DcActionShared
 {
@@ -215,7 +216,7 @@ namespace DcActionShared
         //
         // It used to ask botAI->GetRange("shoot"), described here as the "real weapon
         // range". It is nothing of the sort: PlayerbotAI::GetRange maps "shoot"
-        // straight to sPlayerbotAIConfig.shootDistance, a config knob for how close a
+        // straight to DC_PB_CONFIG(ShootDistance, shootDistance), a config knob for how close a
         // bot likes to stand when shooting, which defaults to 5.0 and is not set in
         // this deployment. So the pick came back as min 8 / max 5 — an empty interval.
         // Even with the HasSpell gate gone, the caller's `d >= minRange && d <=
@@ -822,7 +823,7 @@ bool DcMovementAction::DcMoveTo(uint32 mapId, float x, float y, float z, bool id
     if (!moved && !bot->isMoving())
     {
         char const* why;
-        if (bot->GetExactDist(x, y, destZ) < sPlayerbotAIConfig.targetPosRecalcDistance)
+        if (bot->GetExactDist(x, y, destZ) < DC_PB_CONFIG(TargetPosRecalcDistance, targetPosRecalcDistance))
             // #2747's MoveTo2 stops the bot and reports false inside
             // TargetPosRecalcDistance of the destination. Arrival, not a wedge.
             why = "already at the destination (inside TargetPosRecalcDistance — stock stops "

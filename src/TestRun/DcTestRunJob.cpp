@@ -27,6 +27,7 @@
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "StringFormat.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "World.h"
 
 #include "AiFactory.h"
@@ -350,8 +351,8 @@ std::unique_ptr<DcTestRunJob> DcTestRunJob::CreateWithComp(Player* gm, DcTestDun
     // Resolve the gear ceiling against the conf once, here: a run that took 40
     // minutes must be reproducible from its record even if somebody reloaded
     // the config while it was in the dungeon.
-    job->_gear = DcTestGearTiers::Resolve(gear, sPlayerbotAIConfig.autoGearScoreLimit,
-                                          sPlayerbotAIConfig.autoGearQualityLimit);
+    job->_gear = DcTestGearTiers::Resolve(gear, DC_PB_CONFIG(AutoGearScoreLimit, autoGearScoreLimit),
+                                          DC_PB_CONFIG(AutoGearQualityLimit, autoGearQualityLimit));
     job->_record.gearIlvl = job->_gear.ilvl;
     job->_record.gearQuality = job->_gear.quality;
     DcTestComp::Roster const roster = RosterFor(row, level);
@@ -451,7 +452,7 @@ std::unique_ptr<DcTestRunJob> DcTestRunJob::CreateWithComp(Player* gm, DcTestDun
         }
         slot.guid = guid;
         usedClasses.insert(slot.classId);
-        // Harness adds are exempt from AiPlayerbot.MaxAddedBots. That cap is
+        // Harness adds are exempt from Playerbots.MaxAddedBots. That cap is
         // playerbots' per-account limit on hand-added bots, and every run's
         // party is added under the one issuing GM (usually the test driver),
         // so it capped the whole harness — all concurrent runs together — at
@@ -460,10 +461,10 @@ std::unique_ptr<DcTestRunJob> DcTestRunJob::CreateWithComp(Player* gm, DcTestDun
         // own `.playerbot add` limit exactly as configured. What bounds the
         // harness is the addclass pool (a launch without free characters
         // backs off) and the machine.
-        int32 const addedCap = sPlayerbotAIConfig.maxAddedBots;
-        sPlayerbotAIConfig.maxAddedBots = std::numeric_limits<int32>::max();
+        int32 const addedCap = DC_PB_CONFIG(MaxAddedBots, maxAddedBots);
+        DC_PB_CONFIG(MaxAddedBots, maxAddedBots) = std::numeric_limits<int32>::max();
         mgr->AddPlayerBot(slot.guid, gm->GetSession()->GetAccountId());
-        sPlayerbotAIConfig.maxAddedBots = addedCap;
+        DC_PB_CONFIG(MaxAddedBots, maxAddedBots) = addedCap;
     }
 
     LOG_INFO("playerbots.dungeonclear",
@@ -598,7 +599,7 @@ std::unique_ptr<DcTestRunJob> DcTestRunJob::CreateFromRoster(Player* gm,
     // regear) or relocate it. That rotation walks `currentBots`, populated purely
     // from the playerbots DB's own enrolment rows (RandomPlayerbotMgr::GetBots),
     // and IsRandomBot additionally demands the account be in
-    // AiPlayerbot.RandomBotAccounts. A real player's character satisfies neither,
+    // Playerbots.RandomBotAccounts. A real player's character satisfies neither,
     // so the holder only owns its login/logout here.
     for (Slot const& slot : job->_slots)
         sRandomPlayerbotMgr.AddPlayerBot(slot.guid, 0);
@@ -903,7 +904,7 @@ void DcTestRunJob::TickProvisioning()
         // A random-rolled tank/healer spec would invalidate the whole run.
         FailSetup(std::string("no premade spec template matching '") + slot.specName +
                   "' for " + DcBotProvisioning::ClassToken(slot.classId) +
-                  " (AiPlayerbot.PremadeSpecName.*) — cannot force the " + slot.role);
+                  " (Playerbots.PremadeSpecName.*) — cannot force the " + slot.role);
         return;
     }
 
@@ -969,7 +970,7 @@ void DcTestRunJob::TickProvisioning()
 // shared per-tick provision budget on.
 // Stock playerbots joins any guildless bot to a random bot guild the moment it
 // logs in: RandomPlayerbotMgr::OnBotLoginInternal calls
-// PlayerbotFactory::InitGuild whenever AiPlayerbot.RandomBotGuildCount > 0, with
+// PlayerbotFactory::InitGuild whenever Playerbots.RandomBotGuildCount > 0, with
 // no check that the character actually IS a random bot. A roster member logs in
 // through that same holder (the masterless path is the only one whose ownership
 // gate a hand-picked character clears), so it gets caught too — and a real
@@ -1578,12 +1579,12 @@ void DcTestRunJob::TickStarting()
 
         // RAID runs lean on the playerbots raid strategies for the boss fights
         // (DC stands down during encounters), and those attach by mapId only
-        // when AiPlayerbot.ApplyInstanceStrategies is on. A raid run with the
+        // when Playerbots.ApplyInstanceStrategies is on. A raid run with the
         // knob off would test nothing but bots auto-attacking a raid boss —
         // fail loudly at start instead of 40 minutes later.
-        if (IsRaidMap() && !sPlayerbotAIConfig.applyInstanceStrategies)
+        if (IsRaidMap() && !DC_PB_CONFIG(ApplyInstanceStrategies, applyInstanceStrategies))
         {
-            FailSetup("AiPlayerbot.ApplyInstanceStrategies is off — raid runs need the "
+            FailSetup("Playerbots.ApplyInstanceStrategies is off — raid runs need the "
                       "playerbots raid strategies to fight bosses; enable it and retry");
             return;
         }

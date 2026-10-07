@@ -203,7 +203,7 @@ The two conf keys, if you want to change either:
   up again, and `python3 -m testdeck check` catches an existing mismatch by
   name.
 - `DungeonClear.TestRun.DriverAccount` — the account to put it on. It must not
-  be one of `AiPlayerbot.RandomBotAccounts` and must not be an addclass pool
+  be one of `Playerbots.RandomBotAccounts` and must not be an addclass pool
   account, or the bot rotation would log the driver out from under a live run;
   the module refuses such an account rather than using it. Set it to `""` to
   turn provisioning off and supply the character yourself — then a missing

@@ -16,6 +16,7 @@
 #include "ObjectAccessor.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
@@ -435,7 +436,7 @@ void DcDungeonQueueFillJob::TickPlanning()
         DcSettings::GetUInt(ObjectGuid::Empty, "DungeonQueueFill.GearIlvl"));
     spec.quality = DcSettings::GetUInt(ObjectGuid::Empty, "DungeonQueueFill.GearQuality");
     DcTestGearTiers::Resolved const gear = DcTestGearTiers::Resolve(
-        spec, sPlayerbotAIConfig.autoGearScoreLimit, sPlayerbotAIConfig.autoGearQualityLimit);
+        spec, DC_PB_CONFIG(AutoGearScoreLimit, autoGearScoreLimit), DC_PB_CONFIG(AutoGearQualityLimit, autoGearQualityLimit));
     _gearIlvl = gear.ilvl;
     _gearQuality = gear.quality;
     _gearScoreLimit =
@@ -749,7 +750,7 @@ void DcDungeonQueueFillJob::TickProvisioning()
         }
         Release(std::string("no premade spec template matching '") + slot.plan.specName +
                 "' for " + DcBotProvisioning::ClassToken(slot.plan.classId) +
-                " (AiPlayerbot.PremadeSpecName.*) — cannot force the " + slot.plan.role,
+                " (Playerbots.PremadeSpecName.*) — cannot force the " + slot.plan.role,
                 /*notifyPlayer*/ true);
         return;
     }

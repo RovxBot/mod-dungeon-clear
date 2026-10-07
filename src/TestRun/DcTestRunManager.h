@@ -27,7 +27,7 @@ class Player;
 // the dashboard polls. Any number of runs execute at once — uncapped by default
 // (DungeonClear.TestRun.MaxConcurrent, 0 = unlimited), so the real ceiling is
 // the addclass pool (a start with no free character for a comp slot is refused
-// by name) and the machine. AiPlayerbot.MaxAddedBots does not apply: the
+// by name) and the machine. Playerbots.MaxAddedBots does not apply: the
 // harness's own adds are exempt from it (DcTestRunJob::Create).
 //
 // Threading rules:
@@ -73,7 +73,7 @@ public:
     // planId ties the run to a `.dc test plan` campaign ("" = ad-hoc); errOut /
     // runIdOut are optional feedback for the plan scheduler.
     // gear is the run's own item-level / quality ceiling; a default-constructed
-    // Spec inherits the AiPlayerbot.AutoGear* conf values.
+    // Spec inherits the Playerbots.AutoGear* conf values.
     // size 0 = the classic 5-man comp; 2-40 fields a sized (raid) comp — see
     // DcTestComp::RoleQuota / DcTestRunJob::Create.
     bool Start(Player* gm, std::string const& dungeonToken, uint32 levelOverride, uint32 seed,

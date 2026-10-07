@@ -54,6 +54,7 @@
 #include "Ai/Dungeon/DungeonClear/Util/DungeonClearUtil.h"
 #include "Playerbots.h"
 #include "Ai/Dungeon/DungeonClear/DcValueKeys.h"
+#include "Util/DcPlayerbotsConfig.h"
 
 namespace
 {
@@ -2118,7 +2119,7 @@ bool DungeonClearHealRepositionTrigger::IsActive()
     // out-of-LOS member is dying.
     Unit* visible = AI_VALUE(Unit*, DcKey::Stock::PartyToHeal);
     if (visible && visible->IsAlive() &&
-        visible->GetHealthPct() < sPlayerbotAIConfig.mediumHealth &&
+        visible->GetHealthPct() < DC_PB_CONFIG(MediumHealth, mediumHealth) &&
         bot->IsWithinLOSInMap(visible))
         return false;
 

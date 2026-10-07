@@ -33,6 +33,7 @@
 #include "Playerbots.h"
 #include "Spell.h"
 #include "Timer.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Ai/Dungeon/DungeonClear/Data/DungeonBossInfo.h"
@@ -97,8 +98,8 @@ namespace
     // playerbots can legitimately hand us.
     uint32 EventStaleGapMs()
     {
-        uint32 const slowestTick = std::max<uint32>(sPlayerbotAIConfig.passiveDelay,
-                                                    sPlayerbotAIConfig.reactDelay * 30u);
+        uint32 const slowestTick = std::max<uint32>(DC_PB_CONFIG(PassiveDelay, passiveDelay),
+                                                    DC_PB_CONFIG(ReactDelay, reactDelay) * 30u);
         return std::max<uint32>(DC_EVENT_STALE_FLOOR_MS, slowestTick * 2u);
     }
     // How far out WaitForSpawn / KillCreature scan for the named creature.

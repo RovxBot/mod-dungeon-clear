@@ -62,7 +62,7 @@ class PlanStartRequest(BaseModel):
     # raid comp. Raid rows only (catalogue "raid": true).
     size: int = 0
     # Gear ceiling for every run in the campaign. 0 = inherit the server's
-    # AiPlayerbot.AutoGear* values, -1 = no limit, >0 = that item level.
+    # Playerbots.AutoGear* values, -1 = no limit, >0 = that item level.
     # quality is 0 (inherit) or 1..5.
     ilvl: int = 0
     quality: int = 0

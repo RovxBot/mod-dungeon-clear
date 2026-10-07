@@ -44,7 +44,7 @@
  *     is having the strategy in the playerbots default strategy set. The
  *     registrar above now injects "+dungeon clear" into that set in code (the
  *     four sPlayerbotAIConfig strategy strings), so no manual
- *     `AiPlayerbot.NonCombatStrategies = "+dungeon clear"` conf line is needed.
+ *     `Playerbots.NonCombatStrategies = "+dungeon clear"` conf line is needed.
  *     The `.dc` slash command (DungeonClearCommand.cpp) needs neither, since it
  *     dispatches the action directly.
  */

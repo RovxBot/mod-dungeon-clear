@@ -100,7 +100,7 @@ TEST(DcTestGearTiersTest, LevelingLadderIsThreeStepsAroundDungeonGear)
 TEST(DcTestGearTiersTest, EndgameLadderIsTheDocumentedTiers)
 {
     // Mechanar heroic (level 70) — the TBC ceilings from the
-    // AiPlayerbot.AutoGearScoreLimit comment block, plus the pre-raid floor.
+    // Playerbots.AutoGearScoreLimit comment block, plus the pre-raid floor.
     std::vector<Choice> const tbc = Ladder(554, 70);
     EXPECT_TRUE(HasIlvl(tbc, 115));  // pre-raid / heroic 5-man
     EXPECT_TRUE(HasIlvl(tbc, 120));

@@ -2753,7 +2753,7 @@ TEST(DungeonClearMathTest, PointTowardFromDegenerateBearingReturnsTheAnchor)
 //
 // The rung engages on a leash measured to the TANK but aims at a crumb `lag`
 // yards behind it, and the per-bot stagger grows `lag` while the leash stays
-// put. Below, the shipped live numbers: AiPlayerbot.FollowDistance 1.5 gives
+// put. Below, the shipped live numbers: Playerbots.FollowDistance 1.5 gives
 // dist 1.5, leash 3.5, and crumbs at 1.5 / 4.5 / 7.5 / 10.5.
 
 // The slot-0 follower's crumb is inside the leash, so past the leash is always

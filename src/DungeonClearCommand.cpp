@@ -44,6 +44,7 @@
 #include "TestRun/DcTestPlan.h"
 #include "TestRun/DcTestPlanManager.h"
 #include "TestRun/DcTestRunManager.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "Util/DcSpectator.h"
 #include "Util/DcWatchHop.h"
 #include "Ai/Dungeon/DungeonClear/Settings/DcSettings.h"
@@ -410,7 +411,7 @@ public:
     // `.dc test start <dungeon> [heroic] [level=N] [seed=N] [ilvl=N|none]
     // [quality=rare|epic|…]` — random comp drawn from the addclass pool;
     // dungeon is a registry token (`.dc test list`) or a mapId. ilvl/quality cap
-    // the gear the bots are rolled with, defaulting to the AiPlayerbot.AutoGear*
+    // the gear the bots are rolled with, defaulting to the Playerbots.AutoGear*
     // conf values; `.dc test gear <dungeon>` lists the ceilings worth using for
     // a given dungeon.
     //
@@ -1206,8 +1207,8 @@ public:
         handler->SendSysMessage(Acore::StringFormat(
             "{}{} at level {} — ilvl= choices (server default is {}):", row->name,
             heroic ? " heroic" : "", level,
-            sPlayerbotAIConfig.autoGearScoreLimit > 0
-                ? std::to_string(sPlayerbotAIConfig.autoGearScoreLimit)
+            DC_PB_CONFIG(AutoGearScoreLimit, autoGearScoreLimit) > 0
+                ? std::to_string(DC_PB_CONFIG(AutoGearScoreLimit, autoGearScoreLimit))
                 : std::string("unlimited")));
         for (DcTestGearTiers::Choice const& choice : DcTestGearTiers::Ladder(row->mapId, level))
             handler->SendSysMessage(Acore::StringFormat("  ilvl={:<4} {}", choice.ilvl, choice.label));
