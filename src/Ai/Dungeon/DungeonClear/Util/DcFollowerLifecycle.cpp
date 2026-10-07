@@ -461,7 +461,18 @@ void DcFollowerLifecycle::ReapStrandedPassives()
         // even though the leader is still in a holding phase: the whole point of
         // the release is that the held followers fight back NOW.
         bool const released = DcLeaderSignal::IsLeaderPullHoldReleased(player);
-        if (!inPull || !DcLeaderSignal::IsPullPhaseHolding(phase) || released)
+        // A fresh scout aggro holds the party passive while the leader is still
+        // at Idle (DcPullContext::scoutAggroMs — the gap before the maneuver's
+        // first combat tick flips Idle -> Returning). GetLeaderCampHold is the
+        // one authority on that; without asking it, this reaper stripped the
+        // hold the follower actions had just applied, every tick (Pull Lab,
+        // scout-aggro-while-idle: ~216 on/off flips in 2.5s, a DPS opening on
+        // the Waiter mid-flap) — undoing ee6a971f.
+        Position holdCamp;
+        bool holdPassive = false;
+        bool const scoutHold = !released && phase == static_cast<uint32>(DcPullPhase::Idle) &&
+                               DcLeaderSignal::GetLeaderCampHold(player, holdCamp, holdPassive) && holdPassive;
+        if (!scoutHold && (!inPull || !DcLeaderSignal::IsPullPhaseHolding(phase) || released))
         {
             // The graceful pull commit (leader reached camp and flipped to
             // Engage, so inPull is still true) can hold the party passive a
