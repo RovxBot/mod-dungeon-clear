@@ -14,9 +14,10 @@
 #include <vector>
 
 #include "ObjectGuid.h"
+#include "TestRun/DcTestComp.h"
 #include "TestRun/DcTestGearTiers.h"
+#include "TestRun/DcTestRunJob.h"
 
-class DcTestRunJob;
 class Player;
 
 // Registry of live `.dc test` runs. Each run is a DcTestRunJob owning its own
@@ -95,6 +96,16 @@ public:
                      bool heroic, std::string* msg, std::string const& planId = "",
                      StartErr* errOut = nullptr, std::string* runIdOut = nullptr);
 
+    // Launch a Pull Lab party (src/Lab): the ordinary pool party of exactly
+    // `comp`, handed to `driver` once it is standing in a fresh instance of
+    // `dungeonToken`. Same validation and pool reservation as Start; the job
+    // shows in `.dc test status` like any run.
+    bool StartLab(Player* gm, std::string const& dungeonToken, uint32 levelOverride, uint32 seed,
+                  bool heroic, DcTestGearTiers::Spec const& gear,
+                  std::vector<DcTestComp::Slot> const& comp,
+                  std::shared_ptr<DcTestRunJob::LabDriver> driver, std::string* msg,
+                  StartErr* errOut = nullptr, std::string* runIdOut = nullptr);
+
     // Stop the run(s) the selector resolves to (see DcTestRunSelect). Bare
     // selector = the single active run. False (with an explanatory *msg) on
     // no-runs / ambiguous / not-found.
@@ -125,6 +136,10 @@ public:
     // only one is the one already up. See DcTestRunSelect::NextWatchIndex.
     bool NextWatchTarget(Player* watcher, ObjectGuid* tankOut,
                          std::string* msg, std::string* tokenOut = nullptr) const;
+
+    // `.dc test start ... trace=1`: arm the Pull Lab trace on a run just
+    // started (by its runId). False when no live run has that id.
+    bool EnableTrace(std::string const& runId);
 
     std::string StatusText() const;
     bool IsActive() const { return !_runs.empty(); }

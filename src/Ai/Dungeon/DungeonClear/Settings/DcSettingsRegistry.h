@@ -815,6 +815,11 @@ inline constexpr DcSettingDef kDcSettings[] =
     { "TestRun.NoProgressS",     DcType::UInt,    600,  0,  86400, false },
     { "TestRun.OverallTimeoutS", DcType::UInt,   7200, 60,  86400, false },
     { "TestRun.Plan.MaxTotal",   DcType::UInt,      0,  0, 100000, false },
+    // Pull Lab (src/Lab): how many warm lab parties run scenarios at once. Each
+    // is an ordinary test-run party in its own instance, so it also counts
+    // against TestRun.MaxConcurrent and draws from the addclass pool. The plan
+    // sized the dev box at 15-20 concurrent parties.
+    { "Lab.MaxParties",          DcType::UInt,     15,  1,     20, false },
     { "TestRun.Plan.BackoffMs",  DcType::UInt,   5000,  0, 600000, false },
     { "TestRun.Plan.DriverWaitMs", DcType::UInt, 120000, 0, 600000, false },
     // Endless (pool=, total=0) plans: minutes between checkpoint summary lines

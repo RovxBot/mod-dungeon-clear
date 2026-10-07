@@ -9,6 +9,7 @@
 
 #include "DungeonClearMath.h"
 #include "DungeonClearTuning.h"
+#include "Ai/Dungeon/DungeonClear/Util/DcLabTap.h"
 #include "Ai/Dungeon/DungeonClear/Settings/DcSettings.h"
 #include <algorithm>
 #include <cmath>
@@ -300,6 +301,7 @@ void DcFollowerLifecycle::ApplyFollowerPassive(Player* follower)
         }
         DC_PULL_DEBUG("[DC:{}] advanced-pull: healer pinned at camp (stay, heals only)",
                       follower->GetName());
+        DcLabTap::Passive(follower->GetGUID().GetRawValue(), true);
         return;
     }
 
@@ -319,6 +321,7 @@ void DcFollowerLifecycle::ApplyFollowerPassive(Player* follower)
         // pet release so the pet we just set passive isn't flipped back.
         g_dcPetReleaseAt.erase(follower->GetGUID());
     }
+    DcLabTap::Passive(follower->GetGUID().GetRawValue(), true);
 
     DC_PULL_DEBUG("[DC:{}] advanced-pull: held passive at camp", follower->GetName());
 }
@@ -356,6 +359,7 @@ void DcFollowerLifecycle::RemoveFollowerPassive(Player* follower)
             g_dcHealerFollowStates.erase(fit);
         }
     }
+    DcLabTap::Passive(follower->GetGUID().GetRawValue(), false);
 
     if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(follower))
     {

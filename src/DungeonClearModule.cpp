@@ -98,6 +98,7 @@
 #include "TestRun/DcTestDriver.h"
 #include "TestRun/DcTestDungeonRegistry.h"
 #include "TestRun/DcTestPlanManager.h"
+#include "Lab/DcLabManager.h"
 #include "TestRun/DcTestRunManager.h"
 
 namespace
@@ -567,6 +568,9 @@ public:
         DcTestDriver::Tick();
         DcTestPlanManager::Instance().Tick(diff);
         DcTestRunManager::Instance().Tick(diff);
+        // Pull Lab scheduler: launches warm lab parties through the run
+        // manager above (they tick there); this only fills free capacity.
+        DcLabManager::Instance().Tick(diff);
 
         // Dungeon-gate correctness net: re-assert "DC strategies installed iff in
         // a dungeon" across all bots on a throttled cadence. The login and

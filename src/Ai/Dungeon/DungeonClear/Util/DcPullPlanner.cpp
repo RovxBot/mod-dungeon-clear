@@ -65,6 +65,7 @@
 #include "Ai/Dungeon/DungeonClear/Util/DcEngageGeometry.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcPullDecision.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcPullDecisionIo.h"
+#include "Ai/Dungeon/DungeonClear/Util/DcLabTap.h"
 #include "Ai/Dungeon/DungeonClear/Util/DungeonPathFollower.h"
 #include "Ai/Dungeon/DungeonClear/Util/NavmeshSnap.h"
 #include "Ai/Dungeon/DungeonClear/Value/DungeonClearLiveBossValue.h"
@@ -653,6 +654,8 @@ void DcPullPlanner::UpdateDynamicPullMode(PlayerbotAI* botAI, AiObjectContext* c
     {
         if (DcSettings::GetBool(bot, "RecordDecisions"))
             DcPullDecisionIo::Record(bot->GetGUID().GetRawValue(), getMSTime(), obs, v);
+        DcLabTap::Verdict(bot->GetGUID().GetRawValue(), DcPullDecisionIo::VerdictName(v),
+                          pull.predictedCount, pull.predictedCeiling);
     };
 
     // UNCLASSIFIED AGGRO ON A SWEEP MAP -> ADVANCED, so the maneuver's Idle branch

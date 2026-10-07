@@ -37,6 +37,7 @@
 #include "DungeonClearDispatch.h"
 #include "BgQueueFill/DcBgQueueFillManager.h"
 #include "DungeonQueueFill/DcDungeonQueueFillManager.h"
+#include "Lab/DcLabManager.h"
 #include "TestRun/DcTestDriver.h"
 #include "TestRun/DcTestDungeonRegistry.h"
 #include "TestRun/DcTestGearTiers.h"
@@ -323,6 +324,18 @@ public:
             { "watch",  HandleTestWatch,  SEC_GAMEMASTER, Console::No },
             { "plan",   dcTestPlanTable },
         };
+        // `.dc lab` — the Pull Lab (src/Lab): scripted pull scenarios run in
+        // warm parties and scored by the ten oracles. Console::Yes like `.dc
+        // test`: a console start issues through the headless driver.
+        static ChatCommandTable dcLabTable =
+        {
+            { "list",   HandleLabList,   SEC_GAMEMASTER, Console::Yes },
+            { "show",   HandleLabShow,   SEC_GAMEMASTER, Console::Yes },
+            { "run",    HandleLabRun,    SEC_GAMEMASTER, Console::Yes },
+            { "batch",  HandleLabBatch,  SEC_GAMEMASTER, Console::Yes },
+            { "status", HandleLabStatus, SEC_GAMEMASTER, Console::Yes },
+            { "stop",   HandleLabStop,   SEC_GAMEMASTER, Console::Yes },
+        };
         // `.dc dungeonqueuefill` — the RDF instant fill. Named in full rather
         // than abbreviated because the battleground counterpart
         // (`.dc bgqueuefill`, below) is a separate feature with its own
@@ -354,6 +367,7 @@ public:
             { "config", HandleConfig, SEC_PLAYER, Console::No },
             { "spectate", HandleSpectate, SEC_PLAYER, Console::No },
             { "test",   dcTestTable },
+            { "lab",    dcLabTable },
             { "dungeonqueuefill", dcQueueFillTable },
             { "bgqueuefill", dcBgQueueFillTable },
         };
@@ -415,8 +429,8 @@ public:
 
         static constexpr char const* kUsage =
             "Usage: .dc test start <dungeon> [heroic] [size=N|10|25] [level=N] [seed=N] "
-            "[ilvl=N|none] [quality=normal|uncommon|rare|epic|legendary]\n"
-            "   or: .dc test start <dungeon> party=Tank,Heal,Dps1,Dps2,... [heroic]";
+            "[ilvl=N|none] [quality=normal|uncommon|rare|epic|legendary] [trace=1]\n"
+            "   or: .dc test start <dungeon> party=Tank,Heal,Dps1,Dps2,... [heroic] [trace=1]";
 
         std::string token;
         std::string party;
@@ -425,6 +439,7 @@ public:
         uint32 size = 0;  // 0 = classic 5-man; size=N (or bare 10/25) fields a raid comp
         DcTestGearTiers::Spec gear;
         bool heroic = false;
+        bool trace = false;  // Pull Lab trace + oracles (lab_traces/<runId>.jsonl)
         std::istringstream in{std::string(args)};
         std::string word;
         while (in >> word)
@@ -459,6 +474,8 @@ public:
                 size = static_cast<uint32>(std::strtoul(word.c_str() + 5, nullptr, 10));
             else if (word == "heroic")
                 heroic = true;
+            else if (word.rfind("trace=", 0) == 0)
+                trace = word.substr(6) == "1" || word.substr(6) == "on";
             else if (token.empty())
                 token = word;
             // Raid-size presets: a bare 10/25 AFTER the dungeon token reads as
@@ -479,6 +496,7 @@ public:
         }
 
         std::string msg;
+        std::string runId;
         if (!party.empty())
         {
             // Reject rather than silently ignore: somebody passing level= with a
@@ -492,7 +510,7 @@ public:
                     "roster is the comp (its length is the size).");
                 return true;
             }
-            DcTestRunManager::Instance().StartRoster(issuer, token, party, heroic, &msg);
+            DcTestRunManager::Instance().StartRoster(issuer, token, party, heroic, &msg, "", nullptr, &runId);
         }
         else
         {
@@ -502,8 +520,127 @@ public:
                 return true;
             }
             DcTestRunManager::Instance().Start(issuer, token, level, seed, heroic, gear, &msg,
-                                               "", nullptr, nullptr, size);
+                                               "", nullptr, &runId, size);
         }
+        if (trace && !runId.empty() && DcTestRunManager::Instance().EnableTrace(runId))
+            msg += " [trace armed: oracles scored at teardown]";
+        handler->SendSysMessage(msg);
+        return true;
+    }
+
+    // --- `.dc lab` ------------------------------------------------------------
+
+    static bool HandleLabList(ChatHandler* handler, Optional<std::string> glob)
+    {
+        std::vector<std::string> const ids = DcLabManager::Instance().ListIds(glob ? *glob : "");
+        if (ids.empty())
+        {
+            handler->SendSysMessage("No lab scenarios" + (glob ? " matching '" + *glob + "'" : std::string()) +
+                                    " (lab/scenarios; DC_LAB_DIR overrides the location).");
+            return true;
+        }
+        handler->SendSysMessage(std::to_string(ids.size()) + " lab scenario(s):");
+        for (std::string const& id : ids)
+        {
+            DcLabScenario::Scenario s;
+            std::string err;
+            if (DcLabManager::Instance().Load(id, s, &err))
+                handler->SendSysMessage("  " + id + (s.knownFailure.empty() ? "" : " [" + s.knownFailure + "]") +
+                                        " — " + s.about);
+            else
+                handler->SendSysMessage("  " + id + " — LOAD ERROR: " + err);
+        }
+        return true;
+    }
+
+    static bool HandleLabShow(ChatHandler* handler, std::string id)
+    {
+        DcLabScenario::Scenario s;
+        std::string err;
+        if (!DcLabManager::Instance().Load(id, s, &err))
+        {
+            handler->SendSysMessage("lab scenario " + id + ": " + err);
+            return true;
+        }
+        handler->SendSysMessage(id + ": " + s.about);
+        handler->SendSysMessage(Acore::StringFormat(
+            "  map {}{} {} objective={} start ({:.1f},{:.1f},{:.1f}) radius {:.0f} comp '{}' react {} timeout {}s",
+            s.mapId, s.dungeon.empty() ? "" : " (" + s.dungeon + ")", s.heroic ? "heroic" : "normal", s.objective,
+            s.start.x, s.start.y, s.start.z, s.radius, s.comp.empty() ? "random" : s.comp, s.react, s.timeoutS));
+        std::string packs;
+        for (auto const& [tag, ids] : s.packs)
+            packs += (packs.empty() ? "" : ", ") + tag + "=" + std::to_string(ids.size());
+        handler->SendSysMessage("  packs: " + (packs.empty() ? "-" : packs) + "  synthetic: " +
+                                std::to_string(s.synthetic.size()) + "  injections: " +
+                                std::to_string(s.injections.size()) +
+                                (s.human.slot > 0 ? "  human slot " + std::to_string(s.human.slot) : ""));
+        for (DcLabScenario::Injection const& inj : s.injections)
+            handler->SendSysMessage("    inject " + inj.label);
+        if (!s.knownFailure.empty())
+            handler->SendSysMessage("  known failure: " + s.knownFailure);
+        for (std::string const& w : s.warnings)
+            handler->SendSysMessage("  warning: " + w);
+        return true;
+    }
+
+    // Shared by run/batch: `<target> [seed=N] [repeat=N] [sweep=all|phases|events]`.
+    static bool LabEnqueue(ChatHandler* handler, std::string const& args, bool glob)
+    {
+        if (DcDisabledNotice(handler))
+            return true;
+        std::istringstream in(args);
+        std::string target, word, sweep;
+        uint32 seed = 0, repeat = 1;
+        while (in >> word)
+        {
+            if (word.rfind("seed=", 0) == 0)
+                seed = static_cast<uint32>(std::strtoul(word.c_str() + 5, nullptr, 10));
+            else if (word.rfind("repeat=", 0) == 0)
+                repeat = static_cast<uint32>(std::strtoul(word.c_str() + 7, nullptr, 10));
+            else if (word.rfind("sweep=", 0) == 0)
+                sweep = word.substr(6);
+            else if (target.empty())
+                target = word;
+            else
+            {
+                handler->SendSysMessage("Usage: .dc lab run <id> | .dc lab batch <glob>  [seed=N] [repeat=N] "
+                                        "[sweep=all|phases|events]");
+                return true;
+            }
+        }
+        if (target.empty())
+        {
+            handler->SendSysMessage("Usage: .dc lab run <id> | .dc lab batch <glob>  [seed=N] [repeat=N] "
+                                    "[sweep=all|phases|events]");
+            return true;
+        }
+        Player* issuer = ResolveTestIssuer(handler);
+        if (!issuer)
+            return true;
+        std::vector<std::string> ids;
+        if (glob)
+            ids = DcLabManager::Instance().ListIds(target);
+        else
+            ids.push_back(target);
+        std::string msg;
+        DcLabManager::Instance().Enqueue(issuer, ids, seed, repeat, sweep, &msg);
+        handler->SendSysMessage(msg);
+        return true;
+    }
+
+    static bool HandleLabRun(ChatHandler* handler, Tail args) { return LabEnqueue(handler, std::string(args), false); }
+    static bool HandleLabBatch(ChatHandler* handler, Tail args) { return LabEnqueue(handler, std::string(args), true); }
+
+    static bool HandleLabStatus(ChatHandler* handler)
+    {
+        handler->SendSysMessage(DcLabManager::Instance().StatusText());
+        return true;
+    }
+
+    static bool HandleLabStop(ChatHandler* handler)
+    {
+        std::string msg;
+        DcLabManager::Instance().Stop(&msg);
         handler->SendSysMessage(msg);
         return true;
     }

@@ -161,6 +161,8 @@ if (BUILD_TESTING)
             "${MOD_PATH}/t/TestTestPlanSchedule.cpp"
             "${MOD_PATH}/t/TestTestPlanSummary.cpp"
             "${MOD_PATH}/t/TestDcTestPlan.cpp"
+            "${MOD_PATH}/t/TestLabOracles.cpp"
+            "${MOD_PATH}/t/TestLabScenario.cpp"
             "${MOD_PATH}/t/NavHarness.cpp"
             "${MOD_PATH}/t/replay_decisions.cpp"
             "${MOD_PATH}/t/replay_pull.cpp"

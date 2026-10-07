@@ -10,6 +10,7 @@
 
 #include "ObjectGuid.h"
 #include "Position.h"
+#include "Ai/Dungeon/DungeonClear/Util/DcLabTap.h"
 
 // Advanced-pull (LOS pull-to-camp) sub-phase. The leader's private control state
 // AND the cross-context signal followers read to decide when to hold + go passive
@@ -499,6 +500,7 @@ struct DcPullContext
     // on a problem pack.
     void EnterEngage(uint32 nowMs)
     {
+        DcLabTap::Phase(this, static_cast<uint32>(phase), static_cast<uint32>(DcPullPhase::Engage), nowMs);
         phase = DcPullPhase::Engage;
         phaseSince = nowMs;
         tagTarget = ObjectGuid::Empty;
@@ -528,6 +530,7 @@ struct DcPullContext
         // the graceful release delay (a safety release is always immediate).
         if (phase == DcPullPhase::Idle || phase == DcPullPhase::Engage)
             partyReleased = false;
+        DcLabTap::Phase(this, static_cast<uint32>(phase), static_cast<uint32>(p), nowMs);
         phase = p;
         phaseSince = nowMs;
     }

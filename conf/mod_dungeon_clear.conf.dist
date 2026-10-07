@@ -1651,6 +1651,19 @@ DungeonClear.TestRun.MaxConcurrent = 0
 DungeonClear.TestRun.MaxPlans = 0
 
 #
+#    DungeonClear.Lab.MaxParties
+#        Pull Lab: how many warm lab parties run scenarios in parallel
+#        (`.dc lab run|batch`). Each is a normal 5-bot test-run party in its own
+#        instance that re-stages between scenarios instead of re-provisioning,
+#        so it also counts against TestRun.MaxConcurrent and draws from the
+#        addclass pool. Range 1-20.
+#
+#        Default: 15
+#
+
+DungeonClear.Lab.MaxParties = 15
+
+#
 #    DungeonClear.TestRun.Plan.MaxTotal
 #        Sanity cap on a plan's `total=` argument. 0 = unlimited (the default) —
 #        set a positive number to guard against a fat-fingered total=2000
