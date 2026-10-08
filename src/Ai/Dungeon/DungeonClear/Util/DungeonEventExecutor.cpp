@@ -33,6 +33,7 @@
 #include "Playerbots.h"
 #include "Spell.h"
 #include "Timer.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Ai/Dungeon/DungeonClear/Data/DungeonBossInfo.h"
@@ -97,8 +98,8 @@ namespace
     // playerbots can legitimately hand us.
     uint32 EventStaleGapMs()
     {
-        uint32 const slowestTick = std::max<uint32>(sPlayerbotAIConfig.passiveDelay,
-                                                    sPlayerbotAIConfig.reactDelay * 30u);
+        uint32 const slowestTick = std::max<uint32>(DC_PB_CONFIG(PassiveDelay, passiveDelay),
+                                                    DC_PB_CONFIG(ReactDelay, reactDelay) * 30u);
         return std::max<uint32>(DC_EVENT_STALE_FLOOR_MS, slowestTick * 2u);
     }
     // How far out WaitForSpawn / KillCreature scan for the named creature.
@@ -1476,6 +1477,21 @@ EventDriveOutcome DungeonEventExecutor::Drive(Player* bot, AiObjectContext* cont
     if (prog.stepIndex >= ev.steps.size())
         return EventDriveOutcome::Completed;
 
+    if (bot && ev.completeGoEntry)
+    {
+        float const search = ev.completeGoRadius > 0.0f ? ev.completeGoRadius : DC_EVENT_GO_SEARCH;
+        GameObject* go = bot->FindNearestGameObject(ev.completeGoEntry, search);
+        if (go && static_cast<uint32>(go->GetGoState()) == ev.completeGoState)
+        {
+            LOG_INFO("playerbots.dungeonclear",
+                     "[DC:{}] event '{}' completed at step {}: GO {} reads state {}",
+                     bot->GetName(), ev.name, prog.stepIndex, ev.completeGoEntry,
+                     ev.completeGoState);
+            prog.stepIndex = static_cast<uint32>(ev.steps.size());
+            return EventDriveOutcome::Completed;
+        }
+    }
+
     EventStep const& active = ev.steps[prog.stepIndex];
     StepResult const result = RunStep(bot, context, active, prog, now);
 
@@ -1654,6 +1670,42 @@ void DungeonEventExecutor::SweepCompletedConditionalEvents(Player* bot,
                       "transition -> latched done", bot->GetName(), ev->name, ev->id);
         }
     }
+}
+
+bool DungeonEventExecutor::ObjectiveArrived(Player* bot, AiObjectContext* context,
+                                           DungeonBossInfo const& next)
+{
+    if (!bot || !context)
+        return false;
+
+    // Sticky for a PERSISTENT event already in progress: once started, stay live
+    // regardless of distance so the tank can roam far from the anchor while the
+    // event drives it (down ZulFarrak's stairs to the temple bosses, back to the
+    // NPCs). Initial arrival still goes through the distance/gate check below.
+    if (IsPersistentAnchoredEventActive(context))
+        return true;
+
+    float const radius = next.arriveRadius > 0.0f
+                             ? next.arriveRadius
+                             : DcSettings::GetFloat(bot, "ObjectiveArriveRadius");
+    if (bot->GetExactDist(next.x, next.y, next.z) <= radius)
+        return true;
+
+    // The optional gate creature has spawned alive (the event already fired its
+    // result, e.g. the real boss is up), so we don't need to babysit it.
+    if (next.gateEntry)
+    {
+        Map* map = bot->GetMap();
+        if (!map)
+            return false;
+        for (auto const& kv : map->GetCreatureBySpawnIdStore())
+        {
+            Creature* c = kv.second;
+            if (c && c->GetEntry() == next.gateEntry && c->IsAlive())
+                return true;
+        }
+    }
+    return false;
 }
 
 bool DungeonEventExecutor::IsPersistentAnchoredEventActive(AiObjectContext* context)

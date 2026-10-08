@@ -546,6 +546,19 @@ struct DungeonEvent
     // stairs to the bosses) while the event drives, instead of being held at it.
     bool persistent{false};
 
+    // Event-level completion gate: when completeGoEntry is set, the event is
+    // Completed the moment the nearest such GO (within completeGoRadius) reads
+    // completeGoState — whatever step it is on. For a chain whose phases the
+    // party can fight through out of band (reactively, before the anchor's
+    // arrival radius, or while the event engine is dormant in combat): the
+    // linear steps then wait on a wave that already came and went, and a
+    // required event turns that timeout into a stall. A monotonic "it's over"
+    // signal makes every such ordering converge. Stratholme's Slaughterhouse is
+    // the case — the Baron door opens once the Black Guards die. 0 => unused.
+    uint32 completeGoEntry{0};
+    uint32 completeGoState{0};
+    float  completeGoRadius{0.0f};
+
     // This event OWNS THE PULL while it drives: the whole dynamic/advanced pull
     // system stands down (DungeonClearPullModeCurrentValue) and the scout-lag
     // drops with it (DcLeaderSignal::IsLeaderDynamicScouting), exactly as they do
@@ -627,6 +640,10 @@ public:
     EventBuilder& Optional();
     EventBuilder& Repeatable();
     EventBuilder& Persistent();
+    // Complete the whole event as soon as `goEntry` reads `wantState` (see
+    // DungeonEvent::completeGoEntry).
+    EventBuilder& CompleteWhenGOState(uint32 goEntry, uint32 wantState,
+                                      float searchRadius = 0.0f);
     // Stand the whole pull system (and the scout-lag) down for as long as this
     // event drives — see DungeonEvent::ownsThePull. Conditional events only; the
     // anchored path already infers it from Persistent().

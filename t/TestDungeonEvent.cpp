@@ -831,10 +831,15 @@ TEST(DungeonEventRegistryTest, StratholmeSlaughterhouseEventShape)
     EXPECT_TRUE(e->steps[3].engage);
     EXPECT_EQ(e->steps[3].creatureEntry, 10439u);
 
-    // 2. wave 1: wait for the mindless undead, then ClearRadius them.
-    EXPECT_EQ(e->steps[4].kind, EventStepKind::WaitForSpawn);
-    EXPECT_EQ(e->steps[4].creatureEntry, 11030u);
-    EXPECT_TRUE(e->steps[4].wantAlive);
+    // 2. wave 1: gate on the side gate Ramstein's death opens (monotonic), then
+    //    ClearRadius whatever of the wave is left. NOT WaitForSpawn(Mindless
+    //    11030): that needs an out-of-combat tick while the wave is alive, and the
+    //    wave holds the party in combat until it is dead — five of five failures
+    //    in sk-20261003-174711 sat on it with the wave long gone.
+    EXPECT_EQ(e->steps[4].kind, EventStepKind::WaitForGameObjectState);
+    EXPECT_EQ(e->steps[4].goEntry, 175358u);
+    EXPECT_EQ(e->steps[4].wantState, 0u);
+    EXPECT_GT(e->steps[4].radius, 75.0f);  // ~75yd west of the hall centre
     EXPECT_EQ(e->steps[5].kind, EventStepKind::ClearRadius);
 
     // 3. wave 2: wait for the black guards, then actively seek+kill them
@@ -851,6 +856,14 @@ TEST(DungeonEventRegistryTest, StratholmeSlaughterhouseEventShape)
     EXPECT_EQ(e->steps[8].goEntry, 175796u);
     EXPECT_EQ(e->steps[8].wantState, 0u);
     EXPECT_GT(e->steps[8].radius, 100.0f);  // reaches the door from across the hall
+
+    // ...and the same door completes the whole chain from ANY step: the party
+    // fights these waves reactively (outside the arrival radius, with the event
+    // engine dormant in combat), so the chain must converge however far the
+    // world ran ahead of it.
+    EXPECT_EQ(e->completeGoEntry, 175796u);
+    EXPECT_EQ(e->completeGoState, 0u);
+    EXPECT_GT(e->completeGoRadius, 100.0f);
 }
 
 // Stratholme (329) live side: Grand Crusader Dathrohan -> Balnazzar (eventId 5),
@@ -882,7 +895,11 @@ TEST(DungeonEventRegistryTest, StratholmeDathrohanBalnazzarEventShape)
 
 // The three ziggurat acolyte clears (eventIds 1/2/3) are conditional events
 // (conditions 5/6/7) that fire when a ziggurat door is open but the chamber not
-// yet cleared, each a single ClearRadius of its acolyte chamber.
+// yet cleared: a ClearRadius of the acolyte chamber, then the crystal-repair
+// hook (44/45/46) that holds until the state reads 2. Latching on the clear
+// alone hid a spent Ash'ari Crystal (state stuck at 1, Slaughter Square gates
+// shut forever — tr-20261003-200149-149). Timmy's pre-clear (id 6) stays a
+// single ClearRadius.
 TEST(DungeonEventConditional, StratholmeZigguratAcolyteEvents)
 {
     std::vector<DungeonEvent const*> str = DungeonEventRegistry::Conditional(329);
@@ -892,9 +909,21 @@ TEST(DungeonEventConditional, StratholmeZigguratAcolyteEvents)
     {
         EXPECT_EQ(e->activation, EventActivation::Conditional);
         EXPECT_TRUE(e->required);
-        ASSERT_EQ(e->steps.size(), 1u);
+        ASSERT_FALSE(e->steps.empty());
         EXPECT_EQ(e->steps[0].kind, EventStepKind::ClearRadius);
         EXPECT_TRUE(e->steps[0].engage);
+    }
+    EXPECT_EQ(DungeonEventRegistry::Find(329, 6)->steps.size(), 1u);
+
+    struct Zig { uint32 eventId; uint32 hookId; };
+    for (Zig const z : { Zig{ 1, 44 }, Zig{ 2, 45 }, Zig{ 3, 46 } })
+    {
+        DungeonEvent const* e = DungeonEventRegistry::Find(329, z.eventId);
+        ASSERT_NE(e, nullptr);
+        ASSERT_EQ(e->steps.size(), 2u);
+        EXPECT_EQ(e->steps[1].kind, EventStepKind::Custom);
+        EXPECT_EQ(e->steps[1].hookId, z.hookId);
+        EXPECT_TRUE(ObjectiveHookRegistry::Has(z.hookId));
     }
 
     // event id N maps to condition N+4 (1->5, 2->6, 3->7).

@@ -129,6 +129,13 @@ struct DcRunState
     // Was g_leaderCombatSince.
     uint32 leaderCombatSinceMs = 0;
 
+    // getMSTime() of the leader's FIRST damage in the current fight (0 = none
+    // yet), stamped by DcLeaderSignal::NoteLeaderHit from the damage hook. The
+    // threat lead runs from here: the combat flag can rise seconds before the
+    // tank lands anything, and a lead measured from the flag let DPS open on a
+    // mob the tank had not touched (Pull Lab O2, 20/33 scenarios).
+    uint32 leaderFirstHitMs = 0;
+
     // getMSTime() of the last positive "some party member is in combat" observation,
     // the hysteresis latch behind IsPartyEngagedLatched (absorbs a one-tick combat
     // gap so the party doesn't snap out of "assist" mode mid-fight). 0 = never seen

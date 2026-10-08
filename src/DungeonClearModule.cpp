@@ -44,7 +44,7 @@
  *     is having the strategy in the playerbots default strategy set. The
  *     registrar above now injects "+dungeon clear" into that set in code (the
  *     four sPlayerbotAIConfig strategy strings), so no manual
- *     `AiPlayerbot.NonCombatStrategies = "+dungeon clear"` conf line is needed.
+ *     `Playerbots.NonCombatStrategies = "+dungeon clear"` conf line is needed.
  *     The `.dc` slash command (DungeonClearCommand.cpp) needs neither, since it
  *     dispatches the action directly.
  */
@@ -99,6 +99,7 @@
 #include "TestRun/DcTestDriver.h"
 #include "TestRun/DcTestDungeonRegistry.h"
 #include "TestRun/DcTestPlanManager.h"
+#include "Lab/DcLabManager.h"
 #include "TestRun/DcTestRunManager.h"
 
 namespace
@@ -350,6 +351,8 @@ public:
             return;
 
         DcPullBrake::OnEnterCombat(player);
+        // Same 0->1 edge: a new fight restarts the threat-lead clock.
+        DcLeaderSignal::NoteLeaderEnterCombat(player);
         // Same hook, second reader: `enemy` was discarded here for as long as this
         // script has existed, and it is the only record anywhere of what STARTED a
         // fight. See DcFirstContact.h for what that cost.
@@ -479,6 +482,26 @@ public:
     }
 };
 
+// Threat lead: stamp the DC leader's first hit of each fight, which the damage
+// hold for DPS followers measures from (DcLeaderSignal::NoteLeaderHit). Cheap for
+// every other hit in the world: a player check, an AI lookup, one flag test.
+class DungeonClearLeaderFirstHitScript : public UnitScript
+{
+public:
+    DungeonClearLeaderFirstHitScript()
+        : UnitScript("DungeonClearLeaderFirstHitScript", true, {
+            UNITHOOK_ON_DAMAGE
+        }) {}
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        if (!damage || !attacker || !victim || victim->IsPlayer() || !DcModule::IsEnabled())
+            return;
+        if (Player* player = attacker->ToPlayer())
+            DcLeaderSignal::NoteLeaderHit(player);
+    }
+};
+
 // Drives the orphaned-follow reaper once per world tick. A non-tank DC follower
 // installs a persistent MoveFollow generator to chase the tank; its own
 // follow-tank action tears that down when the DC tank goes away — but only while
@@ -568,6 +591,9 @@ public:
         DcTestDriver::Tick();
         DcTestPlanManager::Instance().Tick(diff);
         DcTestRunManager::Instance().Tick(diff);
+        // Pull Lab scheduler: launches warm lab parties through the run
+        // manager above (they tick there); this only fills free capacity.
+        DcLabManager::Instance().Tick(diff);
 
         // Dungeon-gate correctness net: re-assert "DC strategies installed iff in
         // a dungeon" across all bots on a throttled cadence. The login and
@@ -629,6 +655,50 @@ public:
                  "(ZF coord-typo workaround)",
                  creature->GetGUID().ToString(), entry, creature->GetPositionX());
         creature->DespawnOrUnsummon(Milliseconds(200));
+    }
+};
+
+// WORKAROUND for Stratholme's (map 329) gate-trap critters falling out of the
+// world. instance_stratholme's DoSpawnPlaguedCritters summons 30 Plagued Rats /
+// Insects / Maggots at random points within 8yd of the triggering player, at the
+// player's z+1, with no ground check; in the Scarlet-side alley (3612,-3335) some
+// land inside wall geometry and drop ~66yd onto a floor under Festival Lane. They
+// are summoned already attacking, so the tank chases them through the floor, the
+// party follows, and the run ends trapped ~70yd under Hearthsinger Forresten
+// ("Stuck near" / "route dead-ends" — five of five such failures in
+// sk-20261003-174711 started with a critter 66-68yd below its summon point).
+//
+// Surgical: only these three critter entries on map 329, and only once one sits
+// more than STRAT_CRITTER_FALL_YD below its home (= summon point). A critter on
+// the street never drifts more than a few yards vertically; there is nothing to
+// fight down there.
+class DungeonClearStratFallenCritterScript : public AllCreatureScript
+{
+public:
+    DungeonClearStratFallenCritterScript() : AllCreatureScript("DungeonClearStratFallenCritterScript") {}
+
+    void OnAllCreatureUpdate(Creature* creature, uint32 /*diff*/) override
+    {
+        if (!creature || creature->GetMapId() != 329 /*Stratholme*/)
+            return;
+        uint32 const entry = creature->GetEntry();
+        if (entry != 10441 /*Plagued Rat*/ && entry != 10461 /*Plagued Insect*/ &&
+            entry != 10536 /*Plagued Maggot*/)
+            return;
+        if (!creature->IsSummon() || !creature->IsAlive() || !DcModule::IsEnabled())
+            return;
+        constexpr float STRAT_CRITTER_FALL_YD = 20.0f;
+        float const homeZ = creature->GetHomePosition().GetPositionZ();
+        if (creature->GetPositionZ() >= homeZ - STRAT_CRITTER_FALL_YD)
+            return;
+
+        LOG_INFO("playerbots.dungeonclear",
+                 "[DC] despawning fallen Stratholme critter {} (entry {}) at "
+                 "({:.1f},{:.1f},{:.1f}), {:.1f}yd below its summon point",
+                 creature->GetGUID().ToString(), entry, creature->GetPositionX(),
+                 creature->GetPositionY(), creature->GetPositionZ(),
+                 homeZ - creature->GetPositionZ());
+        creature->DespawnOrUnsummon();
     }
 };
 
@@ -713,8 +783,10 @@ void AddSC_dungeon_clear_module()
     new DungeonClearSpectatorMoverBeginScript();
     new DungeonClearSpectatorPlayerScript();
     new DungeonClearSpectatorDeathGuardScript();
+    new DungeonClearLeaderFirstHitScript();
     new DungeonClearReaperScript();
     new DungeonClearZfStraySummonScript();
+    new DungeonClearStratFallenCritterScript();
     new DungeonClearEranikusCombatReleaseScript();
 
     // `.dc test` harness: receive each changed STATUS frame for the monitored

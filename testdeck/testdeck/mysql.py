@@ -106,7 +106,7 @@ def reset_creds_cache():
 
 
 def bot_account_prefix(cfg=None):
-    """The playerbots random-bot account prefix (AiPlayerbot.RandomBotAccountPrefix).
+    """The playerbots random-bot account prefix (Playerbots.RandomBotAccountPrefix).
 
     Two consumers, and they must agree: the Characters card tags a logged-in
     character as a BOT by it, and the roster picker excludes those accounts
@@ -121,7 +121,7 @@ def bot_account_prefix(cfg=None):
     cfg = cfg or ctx.cfg
     prefix = cfg.bot_account_prefix_default
     try:
-        m = re.findall(r'^\s*AiPlayerbot\.RandomBotAccountPrefix\s*=\s*"?([^"\s]+)"?',
+        m = re.findall(r'^\s*(?:Playerbots|AiPlayerbot)\.RandomBotAccountPrefix\s*=\s*"?([^"\s]+)"?',
                        cfg.playerbots_conf.read_text(), re.M)
         if m and re.fullmatch(r"[A-Za-z0-9_]{1,24}", m[-1]):
             prefix = m[-1]

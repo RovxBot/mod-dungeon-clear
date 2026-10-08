@@ -16,6 +16,7 @@
 #include "ObjectAccessor.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
@@ -513,13 +514,13 @@ void DcBgQueueFillManager::TickDeferred(std::uint32_t diff)
 
 void DcBgQueueFillManager::WarnOnConflictingConfig() const
 {
-    if (!sPlayerbotAIConfig.randomBotJoinBG && !sPlayerbotAIConfig.randomBotAutoJoinBG)
+    if (!DC_PB_CONFIG(RandomBotJoinBG, randomBotJoinBG) && !DC_PB_CONFIG(RandomBotAutoJoinBG, randomBotAutoJoinBG))
         return;
     LOG_WARN("playerbots.dungeonclear",
-             "BGQUEUEFILL is on while AiPlayerbot.RandomBotJoinBG={} / RandomBotAutoJoinBG={}: random "
+             "BGQUEUEFILL is on while Playerbots.RandomBotJoinBG={} / RandomBotAutoJoinBG={}: random "
              "bots queue themselves into battlegrounds independently and will double-fill matches. "
              "Set both to 0.",
-             sPlayerbotAIConfig.randomBotJoinBG ? 1 : 0, sPlayerbotAIConfig.randomBotAutoJoinBG ? 1 : 0);
+             DC_PB_CONFIG(RandomBotJoinBG, randomBotJoinBG) ? 1 : 0, DC_PB_CONFIG(RandomBotAutoJoinBG, randomBotAutoJoinBG) ? 1 : 0);
 }
 
 void DcBgQueueFillManager::Tick(std::uint32_t diff)

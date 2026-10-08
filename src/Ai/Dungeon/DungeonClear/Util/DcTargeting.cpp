@@ -55,6 +55,7 @@
 #include "Chat.h"
 #include "ServerFacade.h"
 #include "Timer.h"
+#include "Util/DcPlayerbotsConfig.h"
 #include "World.h"
 #include "Ai/Dungeon/DungeonClear/Data/BossPullbackRegistry.h"
 #include "Ai/Dungeon/DungeonClear/Data/DcNeverTargetRegistry.h"
@@ -937,7 +938,7 @@ Unit* DcTargeting::FindNearestReachableHostile(Player* bot)
 
     // Match the cap PullRequestAction enforces — anything past this gets
     // silently rejected by the pull pipeline, so don't even consider it.
-    float const maxPullDistance = sPlayerbotAIConfig.reactDistance * 3.0f;
+    float const maxPullDistance = DC_PB_CONFIG(ReactDistance, reactDistance) * 3.0f;
 
     // Collect candidate hostiles from every loaded creature on the map, sort
     // by distance, then take the first one we can actually path to AND that

@@ -14,9 +14,10 @@
 #include <vector>
 
 #include "ObjectGuid.h"
+#include "TestRun/DcTestComp.h"
 #include "TestRun/DcTestGearTiers.h"
+#include "TestRun/DcTestRunJob.h"
 
-class DcTestRunJob;
 class Player;
 
 // Registry of live `.dc test` runs. Each run is a DcTestRunJob owning its own
@@ -26,7 +27,7 @@ class Player;
 // the dashboard polls. Any number of runs execute at once — uncapped by default
 // (DungeonClear.TestRun.MaxConcurrent, 0 = unlimited), so the real ceiling is
 // the addclass pool (a start with no free character for a comp slot is refused
-// by name) and the machine. AiPlayerbot.MaxAddedBots does not apply: the
+// by name) and the machine. Playerbots.MaxAddedBots does not apply: the
 // harness's own adds are exempt from it (DcTestRunJob::Create).
 //
 // Threading rules:
@@ -72,7 +73,7 @@ public:
     // planId ties the run to a `.dc test plan` campaign ("" = ad-hoc); errOut /
     // runIdOut are optional feedback for the plan scheduler.
     // gear is the run's own item-level / quality ceiling; a default-constructed
-    // Spec inherits the AiPlayerbot.AutoGear* conf values.
+    // Spec inherits the Playerbots.AutoGear* conf values.
     // size 0 = the classic 5-man comp; 2-40 fields a sized (raid) comp — see
     // DcTestComp::RoleQuota / DcTestRunJob::Create.
     bool Start(Player* gm, std::string const& dungeonToken, uint32 levelOverride, uint32 seed,
@@ -94,6 +95,16 @@ public:
     bool StartRoster(Player* gm, std::string const& dungeonToken, std::string const& partySpec,
                      bool heroic, std::string* msg, std::string const& planId = "",
                      StartErr* errOut = nullptr, std::string* runIdOut = nullptr);
+
+    // Launch a Pull Lab party (src/Lab): the ordinary pool party of exactly
+    // `comp`, handed to `driver` once it is standing in a fresh instance of
+    // `dungeonToken`. Same validation and pool reservation as Start; the job
+    // shows in `.dc test status` like any run.
+    bool StartLab(Player* gm, std::string const& dungeonToken, uint32 levelOverride, uint32 seed,
+                  bool heroic, DcTestGearTiers::Spec const& gear,
+                  std::vector<DcTestComp::Slot> const& comp,
+                  std::shared_ptr<DcTestRunJob::LabDriver> driver, std::string* msg,
+                  StartErr* errOut = nullptr, std::string* runIdOut = nullptr);
 
     // Stop the run(s) the selector resolves to (see DcTestRunSelect). Bare
     // selector = the single active run. False (with an explanatory *msg) on
@@ -125,6 +136,10 @@ public:
     // only one is the one already up. See DcTestRunSelect::NextWatchIndex.
     bool NextWatchTarget(Player* watcher, ObjectGuid* tankOut,
                          std::string* msg, std::string* tokenOut = nullptr) const;
+
+    // `.dc test start ... trace=1`: arm the Pull Lab trace on a run just
+    // started (by its runId). False when no live run has that id.
+    bool EnableTrace(std::string const& runId);
 
     std::string StatusText() const;
     bool IsActive() const { return !_runs.empty(); }

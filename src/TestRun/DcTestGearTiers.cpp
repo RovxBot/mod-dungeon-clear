@@ -41,7 +41,7 @@ namespace DcTestGearTiers
             return text + " (" + std::to_string(ilvl) + ")";
         }
 
-        // The named ceilings from the AiPlayerbot.AutoGearScoreLimit comment
+        // The named ceilings from the Playerbots.AutoGearScoreLimit comment
         // block, verbatim — a person picking one has read that table (or the
         // wiki page it came from) and expects these exact numbers. Tier and
         // phase names are merged where they land on the same item level.

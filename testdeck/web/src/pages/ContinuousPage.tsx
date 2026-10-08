@@ -322,7 +322,7 @@ function Stepper({ value, onChange }: { value: string; onChange: (v: string) => 
 
 /* Bots in flight: Σ party size over what might be running at once, against
    the addclass pool every party is drawn from (harness bots are exempt from
-   AiPlayerbot.MaxAddedBots). A raid entry fields its default size, so a
+   Playerbots.MaxAddedBots). A raid entry fields its default size, so a
    raid-heavy pool at a high concurrency is where this turns amber. */
 function BotEstimate({
   pool,

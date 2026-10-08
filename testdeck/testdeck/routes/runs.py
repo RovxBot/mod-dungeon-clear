@@ -159,7 +159,7 @@ class RunStartRequest(BaseModel):
     # Party size: 0 = the classic 5-man comp; 2..40 fields a raid comp.
     # Only meaningful for raid rows (the catalogue marks them "raid": true).
     size: int = 0
-    # Gear ceiling: 0 = inherit the server's AiPlayerbot.AutoGear* values,
+    # Gear ceiling: 0 = inherit the server's Playerbots.AutoGear* values,
     # -1 = no limit, >0 = that item level. quality is 0 (inherit) or 1..5.
     ilvl: int = 0
     quality: int = 0

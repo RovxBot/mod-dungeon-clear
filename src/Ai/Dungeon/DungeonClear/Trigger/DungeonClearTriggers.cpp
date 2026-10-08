@@ -54,6 +54,7 @@
 #include "Ai/Dungeon/DungeonClear/Util/DungeonClearUtil.h"
 #include "Playerbots.h"
 #include "Ai/Dungeon/DungeonClear/DcValueKeys.h"
+#include "Util/DcPlayerbotsConfig.h"
 
 namespace
 {
@@ -494,24 +495,15 @@ bool DungeonClearAtObjectiveTrigger::IsActive()
     if (!next.has_value() || next->kind != DungeonAnchorKind::Objective)
         return false;
 
-    // Sticky for a PERSISTENT event already in progress: once started, stay live
-    // regardless of distance so the tank can roam far from the anchor while the
-    // event drives it (down ZulFarrak's stairs to the temple bosses, back to the
-    // NPCs). Initial arrival still goes through the distance/gate check below;
-    // completion latches the objective, after which `next` becomes the boss and
+    // Completion latches the objective, after which `next` becomes the boss and
     // this returns false at the kind check above.
-    if (DungeonEventExecutor::IsPersistentAnchoredEventActive(context))
+    if (DungeonEventExecutor::ObjectiveArrived(bot, context, *next))
         return true;
 
-    // Satisfied when the tank has reached the anchor (within arriveRadius), or
-    // when the optional gate creature has spawned alive (the event already fired
-    // its result, e.g. the real boss is up), so we don't need to babysit it.
     float const radius = next->arriveRadius > 0.0f
                              ? next->arriveRadius
                              : DcSettings::GetFloat(bot, "ObjectiveArriveRadius");
     float const distToAnchor = bot->GetExactDist(next->x, next->y, next->z);
-    if (distToAnchor <= radius)
-        return true;
 
     // Diagnostic (throttled, leader only): when the tank is hovering NEAR an
     // objective but not arriving, this names the exact gap — dist vs arriveRadius
@@ -533,16 +525,6 @@ bool DungeonClearAtObjectiveTrigger::IsActive()
                       "[DC:{}] objective '{}': dist={:.1f} > arriveRadius={:.1f} "
                       "(NOT arrived; event not started)",
                       bot->GetName(), next->name, distToAnchor, radius);
-        }
-    }
-
-    if (next->gateEntry)
-    {
-        for (auto const& kv : map->GetCreatureBySpawnIdStore())
-        {
-            Creature* c = kv.second;
-            if (c && c->GetEntry() == next->gateEntry && c->IsAlive())
-                return true;
         }
     }
     return false;
@@ -2137,7 +2119,7 @@ bool DungeonClearHealRepositionTrigger::IsActive()
     // out-of-LOS member is dying.
     Unit* visible = AI_VALUE(Unit*, DcKey::Stock::PartyToHeal);
     if (visible && visible->IsAlive() &&
-        visible->GetHealthPct() < sPlayerbotAIConfig.mediumHealth &&
+        visible->GetHealthPct() < DC_PB_CONFIG(MediumHealth, mediumHealth) &&
         bot->IsWithinLOSInMap(visible))
         return false;
 

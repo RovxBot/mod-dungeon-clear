@@ -91,6 +91,10 @@ inline constexpr uint32 DC_HOOK_RAID_MUSTER = 40;
 // The Black Morass (map 269) — the wave driver. See BlackMorassDriver.cpp.
 void RegisterBlackMorassHooks(ObjectiveHookRegistry::HookTable& out);
 
+// Stratholme (map 329) — ziggurat crystal repair (ids 44-46). Lives beside the
+// ziggurat events in StratholmeEvents.cpp, which owns the chamber geometry.
+void RegisterStratholmeHooks(ObjectiveHookRegistry::HookTable& out);
+
 // The Violet Hold (map 608) — the siege start, the three defend garrisons and
 // the wave driver. See VioletHoldDriver.cpp. Ids 15-19.
 void RegisterVioletHoldHooks(ObjectiveHookRegistry::HookTable& out);

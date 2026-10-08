@@ -91,7 +91,7 @@ bool DcTestRunManager::Start(Player* gm, std::string const& dungeonToken,
                     "max concurrent test runs reached (" + std::to_string(maxConcurrent) +
                     ") — .dc test stop <run> first");
 
-    // No AiPlayerbot.MaxAddedBots check: the harness's own adds are exempt
+    // No Playerbots.MaxAddedBots check: the harness's own adds are exempt
     // from it (see DcTestRunJob::Create), so it no longer bounds how many runs
     // can be in flight.
 
@@ -113,6 +113,59 @@ bool DcTestRunManager::Start(Player* gm, std::string const& dungeonToken,
         _reservedGuids.insert(g);
 
     std::string const started = "Test run started: " + job->StatusLine();
+    {
+        std::lock_guard<std::mutex> lock(_runsMutex);
+        _runs.push_back(std::move(job));
+    }
+    if (msg)
+        *msg = started;
+    return true;
+}
+
+bool DcTestRunManager::StartLab(Player* gm, std::string const& dungeonToken, uint32 levelOverride, uint32 seed,
+                                bool heroic, DcTestGearTiers::Spec const& gear,
+                                std::vector<DcTestComp::Slot> const& comp,
+                                std::shared_ptr<DcTestRunJob::LabDriver> driver, std::string* msg,
+                                StartErr* errOut, std::string* runIdOut)
+{
+    if (errOut)
+        *errOut = StartErr::None;
+    auto fail = [&](StartErr kind, std::string const& why) -> bool
+    {
+        if (msg)
+            *msg = "Lab party not started: " + why;
+        if (errOut)
+            *errOut = kind;
+        return false;
+    };
+
+    DcTestDungeonRegistry::Row const* row = DcTestDungeonRegistry::Find(dungeonToken);
+    if (!row)
+        return fail(StartErr::UnknownDungeon, "unknown dungeon '" + dungeonToken + "' — see .dc test list");
+    if (heroic && row->heroicLevel == 0)
+        return fail(StartErr::UnknownDungeon, "'" + std::string(row->token) + "' has no heroic mode");
+    if (uint32 const cap = DcTestDungeonRegistry::MaxPlayers(*row);
+        !DcTestDungeonRegistry::SizeFits(static_cast<uint32>(comp.size()), cap))
+        return fail(StartErr::UnknownDungeon, "'" + std::string(row->token) + "' admits at most " +
+                                                  std::to_string(cap) + " players");
+    if (!gm || !GET_PLAYERBOT_MGR(gm))
+        return fail(StartErr::NoMgr, "no playerbot manager on this account");
+    uint32 const maxConcurrent = DcSettings::GetUInt(ObjectGuid::Empty, "TestRun.MaxConcurrent");
+    if (maxConcurrent != 0 && _runs.size() >= maxConcurrent)
+        return fail(StartErr::CapHit, "max concurrent test runs reached (" + std::to_string(maxConcurrent) + ")");
+
+    uint32 const level = levelOverride ? std::min<uint32>(levelOverride, 80u)
+                                       : (heroic ? row->heroicLevel : row->recommendedLevel);
+    std::string err;
+    std::unique_ptr<DcTestRunJob> job =
+        DcTestRunJob::CreateLab(gm, *row, level, seed, heroic, gear, comp, std::move(driver), _reservedGuids, &err);
+    if (!job)
+        return fail(StartErr::PoolExhausted, err);
+    if (runIdOut)
+        *runIdOut = job->RunId();
+    for (ObjectGuid const& g : job->BotGuids())
+        _reservedGuids.insert(g);
+    std::string const started = "Lab party started: " + job->StatusLine();
     {
         std::lock_guard<std::mutex> lock(_runsMutex);
         _runs.push_back(std::move(job));
@@ -158,7 +211,7 @@ bool DcTestRunManager::StartRoster(Player* gm, std::string const& dungeonToken,
                     ") — .dc test stop <run> first");
 
     // Roster members log in masterless (AddPlayerBot with masterAccountId 0),
-    // which AiPlayerbot.MaxAddedBots never applied to in the first place.
+    // which Playerbots.MaxAddedBots never applied to in the first place.
 
     DcTestRoster::Result const parsed = DcTestRoster::Parse(partySpec);
     if (parsed.kind != DcTestRoster::Kind::Ok)
@@ -368,7 +421,7 @@ bool DcTestRunManager::Stop(std::string const& selector, std::string* msg)
         DcTestRunJob* job = _runs[idx].get();
         if (job->Done())
             continue;  // already torn down this tick, awaiting erase
-        if (job->IsMonitoring())
+        if (job->IsMonitoring() || job->InLabStage())
             job->RequestAbort("aborted by .dc test stop");
         else
             job->AbortSetup("aborted by .dc test stop");  // synchronous FailSetup -> Teardown
@@ -391,6 +444,17 @@ std::string DcTestRunManager::ListActiveRuns() const
         out += "  " + job->StatusLine();
     }
     return out;
+}
+
+bool DcTestRunManager::EnableTrace(std::string const& runId)
+{
+    for (std::unique_ptr<DcTestRunJob> const& job : _runs)
+        if (job->RunId() == runId)
+        {
+            job->EnableTrace();
+            return true;
+        }
+    return false;
 }
 
 std::string DcTestRunManager::StatusText() const

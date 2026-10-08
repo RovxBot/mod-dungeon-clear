@@ -7,7 +7,11 @@
 #include "Ai/Dungeon/DungeonClear/Util/DcRun.h"
 
 #include "Action.h"
+#include "AttackAction.h"
+#include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "FollowActions.h"
+#include "GenericSpellActions.h"
 #include "InstanceScript.h"
 #include "Player.h"
 #include "Playerbots.h"
@@ -44,6 +48,44 @@
 // Free everywhere else — HoldsThePossession rejects on a map compare, and it reads
 // this bot's own charm field rather than any cross-bot signal, so no stale stamp
 // can drop the guard while the channel is still up.
+// Does `action` deal damage? Melee/attack actions, the stock target picker that
+// starts them, and any HARMFUL spell — judged by the spell itself, not by its
+// target: Frost Nova, Arcane Explosion, Consecration and the like are cast on
+// the caster and still hit the pack (the first threat-lead fix missed them —
+// a mage's Frost Nova 1.1s after the tank's first hit, lb-20261003-164447-1).
+// Heals and buffs are never held.
+static bool IsDamagingAction(PlayerbotAI* botAI, Action* action, std::string const& name)
+{
+    if (name == "dps assist" || dynamic_cast<AttackAction*>(action))
+        return true;
+    if (dynamic_cast<CastHealingSpellAction*>(action) || dynamic_cast<CastBuffSpellAction*>(action))
+        return false;
+    CastSpellAction* cast = dynamic_cast<CastSpellAction*>(action);
+    if (!cast)
+        return false;
+    uint32 const spellId = botAI->GetAiObjectContext()->GetValue<uint32>("spell id", cast->getSpell())->Get();
+    SpellInfo const* info = spellId ? sSpellMgr->GetSpellInfo(spellId) : nullptr;
+    return info && !info->IsPositive();
+}
+
+// A mob already beating on a non-tank party member is peeled at once: the
+// threat lead protects the tank's grip on HIS mobs, and waiting it out while a
+// caster eats a Ghoul only leaves that mob unattended (Pull Lab O1 rose with
+// the first hold). Single-target actions only — an AoE has no one target.
+static bool PeelsAMobOffTheParty(Player* bot, PlayerbotAI* botAI, Action* action)
+{
+    Unit* target = nullptr;
+    if (CastSpellAction* cast = dynamic_cast<CastSpellAction*>(action))
+        target = cast->GetTarget();
+    else if (dynamic_cast<AttackAction*>(action))
+        target = botAI->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
+    if (!target || target == bot)
+        return false;
+    Unit* victim = target->GetVictim();
+    Player* p = victim ? victim->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr;
+    return p && p != bot && p->IsInSameRaidWith(bot) && !PlayerbotAI::IsTank(p);
+}
+
 static float RazorgorePossessionClamp(Player* bot, std::string const& name)
 {
     if (!DcBlackwingLair::HoldsThePossession(bot))
@@ -309,6 +351,20 @@ float DungeonClearMultiplier::GetValue(Action* action)
             return 0.0f;
     }
 
+    // Threat lead, damage side. A DPS follower holds ALL damage — stock rotation,
+    // melee, "dps assist", class reflexes — for PullPlayerReleaseDelay after the
+    // tank's first hit. The lead used to live only inside DC's own assist rung,
+    // so every stock damage action walked straight past it: the Pull Lab
+    // baseline (lb-20261003-162407-1) caught a DPS landing damage 0.0-1.2s after
+    // the tank's first hit in 20 of 33 scenarios. Movement is untouched (the
+    // assist still closes the gap), and a follower something is attacking, a
+    // tank below the panic HP and the tank itself are never held (a healer's heals
+    // are not damaging actions, its damage spells wait like a DPS's). Only
+    // damaging actions pay for the leader lookup.
+    if (IsDamagingAction(botAI, action, name) && DcLeaderSignal::ShouldHoldDpsDamage(bot) &&
+        !PeelsAMobOffTheParty(bot, botAI, action))
+        return 0.0f;
+
     // Stock follow-master (FollowAction, relevance ~1) points a bot at its MASTER —
     // the human party leader — NOT the dungeon-clear tank. While a DC run is active
     // DC owns 100% of positioning: follow-tank (rel 25) trails the tank out of
@@ -370,6 +426,16 @@ float DungeonClearCombatMultiplier::GetValue(Action* action)
         return 1.0f;
 
     std::string const& name = action->getName();
+
+    // Threat lead, combat engine. The non-combat multiplier can only hold the
+    // OPENER; once a follower is fighting, every damage action (rotation, Frost
+    // Nova, Blast Wave, Flamestrike...) runs here. Without this the hold never
+    // touched a bot that was already in combat — the Pull Lab still caught a
+    // mage's Frost Nova 0.9s after the tank's first hit with the non-combat
+    // gate in place (lb-20261003-165604-1). Same rule, same exemptions.
+    if (IsDamagingAction(botAI, action, name) && DcLeaderSignal::ShouldHoldDpsDamage(bot) &&
+        !PeelsAMobOffTheParty(bot, botAI, action))
+        return 0.0f;
 
     // The possession clamp, first and unconditional — see its definition above.
     // The runner is IN COMBAT for most of its window (the adds are on it), so the
