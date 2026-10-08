@@ -274,7 +274,7 @@ public:
 // Fires while this bot has an un-answered group loot roll (its vote is still
 // NOT_EMITED_YET). Stock playerbots only reaches the "loot roll" action off
 // the "very often" RandomTrigger — a 1-in-3 coin flipped at most once per
-// AiPlayerbot.RepeatDelay (2s default), so bots routinely sit on an open roll
+// Playerbots.RepeatDelay (2s default), so bots routinely sit on an open roll
 // window for many seconds. This trigger drives the same "loot roll" action
 // (the BetterLootRollAction override) every non-combat tick until the vote is
 // cast, so bots roll as soon as the window opens. Gated by

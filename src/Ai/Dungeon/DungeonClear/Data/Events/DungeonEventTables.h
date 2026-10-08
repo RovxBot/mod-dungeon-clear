@@ -1968,7 +1968,7 @@ namespace DcBlackwingLair
     // DISARMING IS NOT OURS. mod-playerbots already owns it
     // (BwlSuppressionDeviceTrigger / BwlTurnOffSuppressionDeviceAction, Ai/Raid/
     // BWL/), turning off any READY device within 15yd at ACTION_RAID (60) — and
-    // this box runs `AiPlayerbot.BotCheats = "food,taxi,raid"`, so every bot
+    // this box runs `Playerbots.BotCheats = "food,taxi,raid"`, so every bot
     // qualifies, not just rogues. A device turned off that way NEVER re-arms
     // (nothing in the bot path calls DoAction(ACTION_DISARMED), so
     // EVENT_SUPPRESSION_RESET is never scheduled, and a bare SetGoState sets no

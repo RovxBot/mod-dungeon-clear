@@ -345,7 +345,7 @@ inline constexpr float DC_SCRIPTED_PULL_CREEP = 0.0f;
 // footwork" — and that number is wrong the moment a ground effect lands ON the camp,
 // because then the two rungs driving the bot are asking for incompatible places and
 // neither ever wins:
-//   * the generic avoid-aoe hops min(radius + 1, AiPlayerbot.FleeDistance) = 5yd from
+//   * the generic avoid-aoe hops min(radius + 1, Playerbots.FleeDistance) = 5yd from
 //     wherever the bot is standing, and CheckLastFlee then forbids reversing that hop
 //     for 5s — so a bot hauled back does not settle, it re-hops SIDEWAYS;
 //   * MgT's Magic Dampening Field step-out is stricter still: it only accepts a spot

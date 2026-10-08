@@ -1377,6 +1377,56 @@ def cmd_soak(soak_dir, limit):
 # --------------------------------------------------------------------------
 
 
+def cmd_lab(data_dir, wanted):
+    """Pull Lab ids: lr-... (one scenario run) or lb-... (a batch)."""
+    path = data_dir / "dc_labruns.jsonl"
+    if not path.exists():
+        die(f"no {path} — no Lab run has finished on this server yet")
+    recs = []
+    with open(path) as fh:
+        for line in fh:
+            try:
+                recs.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    if wanted.startswith("lb-"):
+        hits = [r for r in recs if (r.get("batchId") or "").startswith(wanted)]
+    else:
+        hits = [r for r in recs if (r.get("runId") or "").startswith(wanted)]
+    if not hits:
+        die(f"no Lab record matching {wanted}")
+    if len(hits) > 1:
+        print(f"{len(hits)} Lab run(s) for {wanted}:")
+        for r in hits:
+            print(f"  {r.get('runId'):<34} {r.get('scenario', '?'):<48} {r.get('verdict', '?'):<16} "
+                  f"end={r.get('end', '?'):<12} {r.get('summary', '')}")
+        return
+    r = hits[0]
+    print(f"{r['runId']}  {r.get('scenario')}  verdict={r.get('verdict')}  end={r.get('end')}  "
+          f"{(r.get('durationMs') or 0) / 1000:.1f}s  seed={r.get('seed')}  host={r.get('host')}")
+    if r.get("knownFailure"):
+        print(f"  known failure: {r['knownFailure']}")
+    print(f"  module {r.get('sha') or '?'}  playerbots {r.get('pbSha') or '?'}")
+    for oid, o in sorted((r.get("oracles") or {}).items(), key=lambda kv: int(kv[0][1:])):
+        exp = (r.get("expected") or {}).get(oid)
+        mark = o.get("res", "?")
+        print(f"  {oid:<4} {mark:<5}" + (f" (expected {exp})" if exp else "") +
+              (f" @{(o.get('t') or 0) / 1000:.1f}s {o.get('detail', '')}" if mark == "fail" else ""))
+    trace = r.get("trace")
+    if trace:
+        tp = Path(trace)
+        if not tp.is_absolute():
+            tp = data_dir / tp
+        print(f"\n  trace: {tp}\n  drill down: tools/lab_trace.py {r['runId']} [--timeline|--actions BOT|--oracle O1]")
+    log = data_dir / "DungeonClear.log"
+    if log.exists():
+        lines = [l.rstrip() for l in open(log, errors="ignore") if f"LAB {r['runId']}" in l]
+        if lines:
+            print("\n  log:")
+            for l in lines[-40:]:
+                print("   " + l)
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Everything known about one .dc test run, by its id.",
@@ -1442,6 +1492,9 @@ def main():
         wanted = runs[-1]["runId"]
     if wanted.startswith("tp-"):
         cmd_plan(data_dir, wanted, runs, live)
+        return
+    if wanted.startswith(("lr-", "lb-")):
+        cmd_lab(data_dir, wanted)
         return
 
     rec = find_run(runs, wanted)

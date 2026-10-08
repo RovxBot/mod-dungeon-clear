@@ -160,7 +160,7 @@ namespace DungeonClearMath
     // between two aim points up to `lag + dist` apart. On a ramp the backward leg
     // is a walk down the incline and the forward leg climbs it again, so the slope
     // sets the amplitude: the reported "bots ping-pong on ramps". Live at the
-    // shipped AiPlayerbot.FollowDistance of 1.5 the leash is 3.5 and the crumbs
+    // shipped Playerbots.FollowDistance of 1.5 the leash is 3.5 and the crumbs
     // sit at 1.5 / 4.5 / 7.5 / 10.5 — three of the four slots retreat.
     //
     // The invariant, stated generally: a rung must not move the bot AWAY from the
@@ -458,7 +458,7 @@ namespace DungeonClearMath
     // up — the way it arrives at a boss — rather than merely "not resting".
     //
     // The ordinary between-pulls floors do not deliver that. They are
-    // min(90, AiPlayerbot.AlmostFullHealth) HP and min(75, AiPlayerbot.HighMana)
+    // min(90, Playerbots.AlmostFullHealth) HP and min(75, Playerbots.HighMana)
     // mana, which on stock config is 85/65, and 65% healer mana is thin for a
     // five-elite heroic pack that contains its own healer. Live
     // (tr-20260805-191834-3): the party reported "Shannon (low mana), Erinerice
@@ -553,6 +553,20 @@ namespace DungeonClearMath
     // the bypass), and `leadMs` == 0 (feature off). The game-state read (leader
     // combat stamp, healer role, tank HP, this bot's combat flag) stays in
     // DcLeaderSignal::IsLeaderFightAssistWanted.
+    // Threat-lead DAMAGE hold (pure — gtested). True when a DPS follower must not
+    // deal damage yet: the leader's fight is live (`combatSinceMs` != 0) and less
+    // than `leadMs` has passed since the leader's FIRST HIT (`firstHitMs`). If the
+    // leader has not landed a hit, the hold lasts at most `leadMs + noHitCapMs`
+    // from the combat flag, so a tank that pulls with a taunt or is stunned on the
+    // opener cannot freeze the party. Never holds an `exempt` bot (the tank), a
+    // follower something is attacking (`beingAttacked` — self-defence), a tank
+    // below `panicHpPct` (<= 0 disables that bypass), or with `leadMs` == 0.
+    // ShouldReleaseFollower below gates DC's own assist MOVEMENT; this gates the
+    // damage every action can do, stock ones included.
+    bool ShouldHoldThreatLead(bool exempt, bool beingAttacked, std::uint32_t combatSinceMs,
+                              std::uint32_t firstHitMs, std::uint32_t now, std::uint32_t leadMs,
+                              std::uint32_t noHitCapMs, float tankHealthPct, float panicHpPct);
+
     bool ShouldReleaseFollower(bool isHealer, bool alreadyInCombat,
                                std::uint32_t combatSinceMs,
                                std::uint32_t now, std::uint32_t leadMs,

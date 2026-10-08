@@ -17,6 +17,9 @@ and issue `SELECT`s only — they write nothing, to the DB or to disk.
 | `probe_navmesh.py` | dumps Detour navmesh verts/polys near a point | `mmaps/` |
 | `slice_mapdata.py` | slices navmesh test fixtures for the headless sim | `mmaps/` |
 | `dc_test_run.py` | **everything known about one test run, by its id** — record, plan, live state, and the log lines sliced down to that run | run logs, `*.log` |
+| `lab_from_snapshot.py` | turns a recorded real pull (`dungeonclear_pull_snapshots.jsonl`) into a Pull Lab scenario | snapshots, run records, `acore_world` |
+| `lab_check.py` | checks Pull Lab scenarios against the world DB (tokens, spawnIds on the map, spawned objective, puppet scripts) | `lab/`, `acore_world` |
+| `lab_trace.py` | views a Pull Lab trace (`lab_traces/<runId>.jsonl`): oracles, pull timeline, action stream, any frame | `lab_traces/` |
 | `dc_analytics.py` | ingests test-run JSONL logs into a queryable SQLite db | run logs |
 | `check_config_reads.py` | build guard: every tunable must be read via `DcSettings` | `src/` |
 | `check_determinism.sh` | determinism guard for the decision cores (comments exempt) | `src/` |

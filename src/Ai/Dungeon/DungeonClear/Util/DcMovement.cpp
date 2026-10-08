@@ -16,6 +16,7 @@
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 #include "Ai/Dungeon/DungeonClear/DcValueKeys.h"
+#include "Util/DcPlayerbotsConfig.h"
 
 namespace DcMovement
 {
@@ -264,8 +265,8 @@ namespace DcMovement
         // hold after it (DcPbCompat::RecordMovement) — the same gate either way.
         float const runSpeed = std::max(0.1f, bot->GetSpeed(MOVE_RUN));
         float delay = 1000.0f * (windowLen / runSpeed);
-        delay = std::min(delay, static_cast<float>(sPlayerbotAIConfig.maxWaitForMove));
-        delay = std::max(delay, static_cast<float>(sPlayerbotAIConfig.reactDelay));
+        delay = std::min(delay, static_cast<float>(DC_PB_CONFIG(MaxWaitForMove, maxWaitForMove)));
+        delay = std::max(delay, static_cast<float>(DC_PB_CONFIG(ReactDelay, reactDelay)));
 
         G3D::Vector3 const& dest = pts.back();
         DcPbCompat::RecordMovement(

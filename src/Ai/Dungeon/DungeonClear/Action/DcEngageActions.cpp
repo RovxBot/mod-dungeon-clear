@@ -78,6 +78,7 @@
 #include "Playerbots.h"
 #include "DcActionShared.h"
 #include "Ai/Dungeon/DungeonClear/DcValueKeys.h"
+#include "Util/DcPlayerbotsConfig.h"
 
 using namespace DcActionShared;
 
@@ -486,7 +487,7 @@ bool DungeonClearEngageActionBase::EngageDirect(Unit* target)
         if (!bot->IsHostileTo(creature))
             creature->EngageWithTarget(bot);
     botAI->ChangeEngine(BOT_STATE_COMBAT);
-    botAI->SetNextCheckDelay(sPlayerbotAIConfig.reactDelay);
+    botAI->SetNextCheckDelay(DC_PB_CONFIG(ReactDelay, reactDelay));
     return true;
 }
 
@@ -1955,6 +1956,18 @@ bool DcObjectiveArriveAction::Execute(Event /*event*/)
 {
     std::optional<DungeonBossInfo> next = AI_VALUE(std::optional<DungeonBossInfo>, DcKey::NextDungeonBoss);
     if (!next.has_value() || next->kind != DungeonAnchorKind::Objective)
+        return false;
+
+    // The trigger that queued this action judged arrival against the objective
+    // `next` named THEN. A queued action can run a tick or two later, after the
+    // previous objective latched and NextDungeonBoss moved on — and without this
+    // re-check it drives the NEW objective's event from wherever the tank stands.
+    // Sunken Temple, sk-20261003-174711: one Atal'ai Defender latched, the next
+    // defender's event started 70-90yd from it, its 60yd KillCreature gate found
+    // nothing alive and reported Done, and the objective latched unfought. Only
+    // five of six defenders died, the forcefield never dropped, and both runs
+    // timed out no_progress in front of Jammal'an.
+    if (!DungeonEventExecutor::ObjectiveArrived(bot, context, *next))
         return false;
 
     // We own the leader's tick for as long as this objective runs — including

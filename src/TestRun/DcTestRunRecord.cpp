@@ -253,6 +253,13 @@ namespace DcTestRunRecord
         AppendEscaped(s, rec.stallAtEnd);
         s << ",\"phaseAtEnd\":";
         AppendEscaped(s, rec.phaseAtEnd);
+        if (!rec.traceFile.empty())
+        {
+            s << ",\"traceFile\":";
+            AppendEscaped(s, rec.traceFile);
+            s << ",\"oracles\":";
+            AppendEscaped(s, rec.oracles);
+        }
         s << ",\"wipeOnBoss\":" << (rec.wipeOnBoss ? "true" : "false")
           << ",\"wipeOpponentEntry\":" << rec.wipeOpponentEntry
           << ",\"wipeOpponent\":";

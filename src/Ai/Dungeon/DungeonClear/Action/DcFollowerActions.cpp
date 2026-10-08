@@ -74,6 +74,7 @@
 #include "Playerbots.h"
 #include "DcActionShared.h"
 #include "Ai/Dungeon/DungeonClear/DcValueKeys.h"
+#include "Util/DcPlayerbotsConfig.h"
 
 using namespace DcActionShared;
 
@@ -402,7 +403,7 @@ bool DungeonClearFollowTankAction::Execute(Event /*event*/)
         if (mm && mm->GetCurrentMovementGeneratorType() == FOLLOW_MOTION_TYPE)
             mm->Clear();
 
-        float const riderDist = std::min<float>(sPlayerbotAIConfig.followDistance, 6.0f);
+        float const riderDist = std::min<float>(DC_PB_CONFIG(FollowDistance, followDistance), 6.0f);
         if (bot->GetExactDist(tank) <= riderDist + kTrailArrival)
             return false;
 
@@ -625,7 +626,7 @@ bool DungeonClearFollowTankAction::Execute(Event /*event*/)
     // Tighter cluster than default. Keeps followers in healer LOS and out
     // of mob aggro-radius arcs during the advance. Default followDistance
     // (~10yd) had them strung out by the time the tank engaged.
-    float const dist = std::min<float>(sPlayerbotAIConfig.followDistance, 6.0f);
+    float const dist = std::min<float>(DC_PB_CONFIG(FollowDistance, followDistance), 6.0f);
 
     // Centered trail-follow. Stock Follow() / MoveFollow re-paths to the follow
     // slot through the core PathGenerator, which returns Detour's taut, wall-
@@ -903,7 +904,7 @@ bool DungeonClearCampHoldActionBase::Execute(Event /*event*/)
     {
         Unit* const healTarget = AI_VALUE(Unit*, DcKey::Stock::PartyToHeal);
         uint8 const lowestPct = AI_VALUE2(uint8, DcKey::Stock::Health, DcKey::Stock::PartyToHeal);
-        if (healTarget && lowestPct < sPlayerbotAIConfig.almostFullHealth)
+        if (healTarget && lowestPct < DC_PB_CONFIG(AlmostFullHealth, almostFullHealth))
         {
             float const healRange = botAI->GetRange("heal");
             bool const canCast = bot->GetExactDist(healTarget) <= healRange &&
@@ -2047,8 +2048,17 @@ bool DungeonClearLeaderAssistAction::Execute(Event /*event*/)
         context->GetValue<Unit*>(DcKey::Stock::CurrentTarget)->Set(target);
         if (!bot->IsInCombat())
             bot->SetInCombatWith(target);
+        // Engage for real, the way stock AttackAction does: switch to the combat
+        // engine and start the attack. Only an attack switches the engine, and
+        // a tank already combat-flagged by its party (no victim, nothing on it)
+        // sat on the non-combat engine with this "succeeding" every tick and
+        // nothing happening — while Raiders shot a DPS 23yd away (Pull Lab
+        // gundrak-ranged-standoff). The combat engine's rotation, taunt and
+        // reach take it from here.
+        botAI->ChangeEngine(BOT_STATE_COMBAT);
+        bot->Attack(target, botAI->IsMelee(bot));
         DC_PULL_TRACE("[DC:{}] leader assist: in sight of party fight ({:.1f}yd) "
-                      "-> took threat, combat engine takes over",
+                      "-> attacking, combat engine takes over",
                       bot->GetName(), bot->GetExactDist(target));
         return true;
     }

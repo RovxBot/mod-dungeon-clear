@@ -205,6 +205,11 @@ namespace DcTestRunRecord
         std::string stallAtEnd;
         std::string phaseAtEnd;
 
+        // `trace=1` runs only (Pull Lab P0): where the LabTrace JSONL landed and
+        // the one-line oracle summary. Omitted from the JSON when empty.
+        std::string traceFile;
+        std::string oracles;
+
         // What the party was fighting when it went down. The first question
         // anyone asks of a failed run is "did we lose the boss fight, or did a
         // trash pack eat us?", and neither the verdict token nor the status

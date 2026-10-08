@@ -63,7 +63,7 @@ namespace DcStrategyGate
     // STRATEGY_TYPE_NONCOMBAT, "dungeon clear combat" is STRATEGY_TYPE_COMBAT),
     // but nothing enforces that: both live in Ctx::sharedStrategyContexts, which
     // both engines consult, so `co +dungeon clear` (or the same name pasted into
-    // AiPlayerbot.CombatStrategies) instantiates the non-combat strategy inside
+    // Playerbots.CombatStrategies) instantiates the non-combat strategy inside
     // the COMBAT engine. That is never correct, in a dungeon or out of one, and
     // it is not a state this module can produce on its own.
     //

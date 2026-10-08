@@ -990,6 +990,40 @@ TEST(DungeonClearPlantTest, FlickerDoesNotAccumulate)
     EXPECT_TRUE(ShouldPlantEarly(tight, 6.0f, 2u, false, 10.0f, 40.0f, ticks));  // 2
 }
 
+// --- ShouldHoldThreatLead (threat-lead damage hold) -----------------------
+// Signature: (exempt, beingAttacked, combatSinceMs, firstHitMs, now, leadMs,
+// noHitCapMs, tankHp, panicHp). Pull Lab O2: a DPS landed damage 0.0-1.2s after
+// the tank's first hit in 20/33 scenarios, because only DC's own assist honoured
+// the lead and it measured from the combat flag, not the first hit.
+
+TEST(DungeonClearMathTest, ThreatLeadHoldsDpsUntilTheLeadFromTheFirstHit)
+{
+    using DungeonClearMath::ShouldHoldThreatLead;
+    // Flag at 1000, first hit at 3000: still held at 4000 (1.0s after the hit),
+    // released at 4500 (1.5s) — though 3.5s have passed since the flag.
+    EXPECT_TRUE(ShouldHoldThreatLead(false, false, 1000, 3000, 4000, 1500, 2500, 100.0f, 60.0f));
+    EXPECT_FALSE(ShouldHoldThreatLead(false, false, 1000, 3000, 4500, 1500, 2500, 100.0f, 60.0f));
+}
+
+TEST(DungeonClearMathTest, ThreatLeadNoHitIsCapped)
+{
+    using DungeonClearMath::ShouldHoldThreatLead;
+    // No hit yet (a taunt pull, a stunned tank): held lead + cap from the flag.
+    EXPECT_TRUE(ShouldHoldThreatLead(false, false, 1000, 0, 4999, 1500, 2500, 100.0f, 60.0f));
+    EXPECT_FALSE(ShouldHoldThreatLead(false, false, 1000, 0, 5000, 1500, 2500, 100.0f, 60.0f));
+}
+
+TEST(DungeonClearMathTest, ThreatLeadBypasses)
+{
+    using DungeonClearMath::ShouldHoldThreatLead;
+    EXPECT_FALSE(ShouldHoldThreatLead(true, false, 1000, 3000, 3100, 1500, 2500, 100.0f, 60.0f));   // healer/tank
+    EXPECT_FALSE(ShouldHoldThreatLead(false, true, 1000, 3000, 3100, 1500, 2500, 100.0f, 60.0f));   // being hit
+    EXPECT_FALSE(ShouldHoldThreatLead(false, false, 0, 0, 3100, 1500, 2500, 100.0f, 60.0f));        // no fight
+    EXPECT_FALSE(ShouldHoldThreatLead(false, false, 1000, 3000, 3100, 0, 2500, 100.0f, 60.0f));     // feature off
+    EXPECT_FALSE(ShouldHoldThreatLead(false, false, 1000, 3000, 3100, 1500, 2500, 40.0f, 60.0f));   // tank panic
+    EXPECT_TRUE(ShouldHoldThreatLead(false, false, 1000, 3000, 2900, 1500, 2500, 100.0f, 60.0f));   // stamp ahead
+}
+
 // --- ShouldReleaseFollower (threat-lead window) ---------------------------
 
 using DungeonClearMath::ShouldReleaseFollower;
@@ -2719,7 +2753,7 @@ TEST(DungeonClearMathTest, PointTowardFromDegenerateBearingReturnsTheAnchor)
 //
 // The rung engages on a leash measured to the TANK but aims at a crumb `lag`
 // yards behind it, and the per-bot stagger grows `lag` while the leash stays
-// put. Below, the shipped live numbers: AiPlayerbot.FollowDistance 1.5 gives
+// put. Below, the shipped live numbers: Playerbots.FollowDistance 1.5 gives
 // dist 1.5, leash 3.5, and crumbs at 1.5 / 4.5 / 7.5 / 10.5.
 
 // The slot-0 follower's crumb is inside the leash, so past the leash is always
