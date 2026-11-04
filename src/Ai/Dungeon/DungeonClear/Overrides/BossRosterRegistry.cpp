@@ -44,6 +44,7 @@ namespace
             RegisterBlackwingLairRoster(t);
             RegisterDeadminesRoster(t);
             RegisterWailingCavernsRoster(t);
+            RegisterBlackfathomDeepsRoster(t);
             RegisterStratholmeRoster(t);
             RegisterDireMaulRoster(t);
             RegisterUldamanRoster(t);
@@ -66,6 +67,8 @@ namespace
             RegisterGundrakRoster(t);
             RegisterVioletHoldRoster(t);
             RegisterMoltenCoreRoster(t);
+            RegisterZulGurubRoster(t);
+            RegisterTempleOfAhnQirajRoster(t);
             RegisterHallsOfStoneRoster(t);
             RegisterUtgardePinnacleRoster(t);
             RegisterPitOfSaronRoster(t);
