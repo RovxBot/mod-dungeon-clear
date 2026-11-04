@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "Ai/Dungeon/DungeonClear/Data/DungeonEventRegistry.h"
+#include "Ai/Dungeon/DungeonClear/Util/DcPoolExitDecision.h"
 
 class Player;
 class Creature;
@@ -71,6 +72,23 @@ void RegisterStratholmeEvents(std::vector<DungeonEvent>& out);
 void RegisterUldamanEvents(std::vector<DungeonEvent>& out);
 void RegisterScholomanceEvents(std::vector<DungeonEvent>& out);
 void RegisterDireMaulEvents(std::vector<DungeonEvent>& out);
+void RegisterBlackfathomDeepsEvents(std::vector<DungeonEvent>& out);
+// Blackfathom Deeps (map 48) — the Forgotten Pool exit, shared with the gtests
+// (t/TestBlackfathomDeeps). The reasoning is in BlackfathomDeepsEvents.cpp.
+namespace DcBlackfathomDeeps
+{
+    constexpr uint32 EVENT_POOL_EXIT = 8;  // 3, 4, 7 were the removed Serra'kis legs
+    // Hook ids are one flat space across every dungeon; 63 is the next free one.
+    constexpr uint32 HOOK_POOL_EXIT = 63;
+    // Bound on one climb out (the Custom step's timeout): the longest floor
+    // route to the ramp is ~200yd, under a minute of swimming.
+    constexpr uint32 POOL_EXIT_TIMEOUT_MS = 120000;
+    constexpr uint32 NPC_LORGUS_JETT = 12902;
+
+    // The pool, its depth gate and the ramp out (defined beside the event).
+    DcPoolExit::Pool const& ForgottenPool();
+}
+
 // Hellfire Ramparts (map 543) final-approach gate — see HellfireRampartsEvents.cpp
 // for the measurements. Exposed so t/TestRampartsLedgeProbe can assert against the
 // real navmesh that the zone-in platform lies outside the gate; the numbers are
@@ -866,6 +884,8 @@ namespace DcVioletHold
 
 void RegisterVioletHoldEvents(std::vector<DungeonEvent>& out);
 void RegisterMoltenCoreEvents(std::vector<DungeonEvent>& out);
+void RegisterZulGurubEvents(std::vector<DungeonEvent>& out);
+void RegisterTempleOfAhnQirajEvents(std::vector<DungeonEvent>& out);
 
 // --- Halls of Stone (map 599) ---------------------------------------------
 //
@@ -5850,6 +5870,7 @@ void RegisterBlackrockSpireRoster(std::vector<BossRosterPatch>& t);
 void RegisterBlackwingLairRoster(std::vector<BossRosterPatch>& t);
 void RegisterDeadminesRoster(std::vector<BossRosterPatch>& t);
 void RegisterWailingCavernsRoster(std::vector<BossRosterPatch>& t);
+void RegisterBlackfathomDeepsRoster(std::vector<BossRosterPatch>& t);
 void RegisterStratholmeRoster(std::vector<BossRosterPatch>& t);
 void RegisterDireMaulRoster(std::vector<BossRosterPatch>& t);
 void RegisterUldamanRoster(std::vector<BossRosterPatch>& t);
@@ -5873,6 +5894,10 @@ void RegisterVioletHoldRoster(std::vector<BossRosterPatch>& t);
 void RegisterHallsOfStoneRoster(std::vector<BossRosterPatch>& t);
 void RegisterGundrakRoster(std::vector<BossRosterPatch>& t);
 void RegisterMoltenCoreRoster(std::vector<BossRosterPatch>& t);
+// Zul'Gurub (309): High Priestess Arlokk, summoned by the Gong of Bethekk.
+void RegisterZulGurubRoster(std::vector<BossRosterPatch>& t);
+// Temple of Ahn'Qiraj (531): Ouro, summoned when a player reaches his mound.
+void RegisterTempleOfAhnQirajRoster(std::vector<BossRosterPatch>& t);
 // Utgarde Pinnacle (575) — the ONE row that makes this dungeon runnable at all
 // (Svala, whose credit entry 26668 is a runtime UpdateEntry target with no spawn
 // row, so BossSpawnIndex drops her silently) plus the three travel objectives the
