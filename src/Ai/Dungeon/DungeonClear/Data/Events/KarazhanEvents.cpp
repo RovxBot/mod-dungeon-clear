@@ -143,12 +143,14 @@ namespace
     // clear only starts the event once the tank is in click range:
     //
     //   0. click the urn;
-    //   1. raid muster: stage on the tank, top off, rebuff, while he flies the
+    //   1. make sure the intro started (EnsureNightbaneIntro): start it
+    //      ourselves if the urn script did not;
+    //   2. raid muster: stage on the tank, top off, rebuff, while he flies the
     //      intro path (~765yd, about a minute). The terrace doors shut when the
     //      fight starts, so everyone must be out here first;
-    //   2. hold at the muster point (18.8yd from the landing) until the fight is
+    //   3. hold at the muster point (18.8yd from the landing) until the fight is
     //      on — this is what stops the 8s no-player evade;
-    //   3. hold until DONE. The fight is combat, which the playerbots `karazhan`
+    //   4. hold until DONE. The fight is combat, which the playerbots `karazhan`
     //      strategy owns (flight phases, teleport back to the terrace). An evade
     //      reads NOT_STARTED here and rewinds to step 0, which clicks again.
     DungeonEvent NightbaneUrn()
@@ -159,6 +161,8 @@ namespace
             .UseGO(GO_BLACKENED_URN, /*searchRadius*/ 30.0f, URN_X, URN_Y, URN_Z)
                 .CarryItem(ITEM_BLACKENED_URN)
                 .Timeout(60000)
+            .Custom(HOOK_KZ_NIGHTBANE_INTRO)
+                .Timeout(120000)  // an evading Nightbane flies home and respawns first
             .Custom(DC_HOOK_RAID_MUSTER)
                 .Timeout(240000)
             .MoveToHoldUntilBossState(NB_MUSTER_X, NB_MUSTER_Y, NB_MUSTER_Z, /*radius*/ 8.0f,
@@ -320,7 +324,7 @@ void RegisterKarazhanRoster(std::vector<BossRosterPatch>& t)
                              LANDING_X, LANDING_Y, LANDING_Z,
                              /*completionFrom*/ NPC_NIGHTBANE, ORDER_NIGHTBANE));
     // Chess: the Status Bar's row is removed above (a trigger that never dies);
-    // the objective owns the game and is finished while GetData(9) reads DONE.
+    // the objective owns the game and is finished while GetData(8) reads DONE.
     // Read live: the win is not saved, and after an instance reload the exit door
     // to Prince is shut again, so the game has to be played again.
     DungeonBossInfo chess = MakeObjective(OBJ(OBJ_CHESS), /*encounterIndex*/ BIT_CHESS, MAP,
