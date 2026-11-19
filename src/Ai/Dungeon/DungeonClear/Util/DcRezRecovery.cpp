@@ -4,6 +4,7 @@
  */
 
 #include "DcRezRecovery.h"
+#include "Integration/DcAutonomyRuntime.h"
 
 #include "Ai/Dungeon/DungeonClear/Data/DcNeverTargetRegistry.h"
 #include "Ai/Dungeon/DungeonClear/Data/Events/DungeonEventTables.h"
@@ -792,6 +793,7 @@ namespace DcRezRecovery
 
     bool RegroupAtEntrance(Player* bot)
     {
+        if (DcAutonomy::Owns(bot)) return false;
         if (!bot)
             return false;
         Player* owner = ResolveRunOwner(bot);

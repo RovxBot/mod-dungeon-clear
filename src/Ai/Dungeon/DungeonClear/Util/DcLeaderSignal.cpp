@@ -4,6 +4,7 @@
  */
 
 #include "DcLeaderSignal.h"
+#include "Integration/DcAutonomyRuntime.h"
 
 #include "DungeonClearUtil.h"   // DC_PULL_* log macros
 #include "DungeonClearMath.h"
@@ -1547,6 +1548,7 @@ ObjectGuid DcLeaderSignal::GetLeaderPullTarget(Player* bot)
 }
 void DcLeaderSignal::SetLeaderDazeImmunity(Player* leader, bool apply)
 {
+    if (apply && DcAutonomy::Owns(leader)) return;
     if (!leader)
         return;
 

@@ -1,0 +1,17 @@
+name: Trusted autonomy contract (no game build)
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 t/check_autonomy.py
+      - run: python3 tools/check_config_reads.py
+      - run: python3 tools/check_msvc_portability.py
+      - run: bash tools/check_determinism.sh

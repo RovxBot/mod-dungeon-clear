@@ -15,6 +15,7 @@ class DcOnAction : public Action
 public:
     DcOnAction(PlayerbotAI* botAI) : Action(botAI, "dc on") {}
     bool Execute(Event event) override;
+    bool Initialize(std::string const& param, Event event = Event());
 };
 
 class DcOffAction : public Action

@@ -105,6 +105,8 @@ inline constexpr DcSettingDef kDcSettings[] =
     // Server-only: a master switch is an admin decision, never something an
     // addon override may reach.
     { "Enable",                DcType::Bool,   1,   0,   1,  false },
+    // Internal provider gate; never accepts addon overrides.
+    { "Autonomy.Enable",       DcType::Bool,   0,   0,   1,  false },
 
     { "LootMinQuality",        DcType::UInt,   0,   0,   6,  true  },
 

@@ -2049,3 +2049,7 @@ DungeonClear.BgQueueFill.GearQuality = 0
 #
 
 DungeonClear.BgQueueFill.LogoutOnRelease = 1
+
+# Internal M3A provider. No chat authorization changes; requires autonomy v1.
+# One already eligible five-bot group in Utgarde Keep normal; travel is separate.
+DungeonClear.Autonomy.Enable = 0

@@ -72,6 +72,11 @@ struct DcTestExtra
 
 struct DcRunState
 {
+    // Internal ownership and terminal evidence survive normal teardown. A fresh
+    // manual initialization clears them; a trusted provider sets the nonce.
+    uint64 autonomyRun = 0;
+    std::string autonomyEnd;
+
     // === run session — cleared by Reset() (dc on / dc off / death / all-cleared) ===
     bool        enabled = false;   // the run's master switch (leader-owned)
     bool        paused  = false;   // soft-stop layered on `enabled`; see OnResume
@@ -853,10 +858,14 @@ struct DcRunState
     // telemetry's own reset, and the wing is instance-keyed.
     void Reset()
     {
+        uint64 const owned = autonomyRun;
+        std::string terminal = std::move(autonomyEnd);
         uint32 const seq = eventProgressSeq;
         std::vector<DcTestExtra> extras = std::move(testExtras);
         DcRunWing::Latch wing = std::move(runWing);
         *this = DcRunState{};
+        autonomyRun = owned;
+        autonomyEnd = std::move(terminal);
         eventProgressSeq = seq;
         testExtras = std::move(extras);
         runWing = std::move(wing);

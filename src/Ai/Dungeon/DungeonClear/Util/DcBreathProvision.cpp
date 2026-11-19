@@ -4,6 +4,7 @@
  */
 
 #include "DcBreathProvision.h"
+#include "Integration/DcAutonomyRuntime.h"
 
 #include <cmath>
 #include <string>
@@ -81,6 +82,7 @@ namespace
 
     bool DrinkElixir(Player* p)
     {
+        if (DcAutonomy::Owns(p)) return false;
         Item* elixir = p->GetItemByEntry(DcBreathSource::ITEM_ELIXIR_OF_WATER_BREATHING);
         if (!elixir)
         {
@@ -219,6 +221,7 @@ bool DcBreathProvision::AnyBotLacksBreath(Player* bot)
 
 void DcBreathProvision::WatchdogTick(Player* bot)
 {
+    if (DcAutonomy::Owns(bot)) return;
     if (!bot || !DcLeaderSignal::IsDungeonClearLeader(bot))
         return;
     PlayerbotAI* ai = GET_PLAYERBOT_AI(bot);
