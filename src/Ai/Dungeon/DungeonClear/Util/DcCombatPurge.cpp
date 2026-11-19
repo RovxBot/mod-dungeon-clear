@@ -4,6 +4,7 @@
  */
 
 #include "DcCombatPurge.h"
+#include "Integration/DcAutonomyRuntime.h"
 
 #include "Ai/Dungeon/DungeonClear/Data/Events/DungeonEventTables.h"
 #include "Ai/Dungeon/DungeonClear/Data/DcCombatPurgeRegistry.h"
@@ -64,7 +65,7 @@ namespace
     // the same unendable fight faster than the clock that detects it.
     uint32 PurgeWindowMs(Player* bot)
     {
-        return DcSettings::GetUInt(bot, "UnreachableCombatPurgeSecs") * 1000;
+        return DcAutonomy::Owns(bot) ? 0 : DcSettings::GetUInt(bot, "UnreachableCombatPurgeSecs") * 1000;
     }
 }
 
@@ -101,6 +102,7 @@ namespace DcCombatPurge
 
     uint32 Purge(Player* leader)
     {
+        if (DcAutonomy::Owns(leader)) return 0;
         if (!leader || !leader->IsInWorld())
             return 0;
 

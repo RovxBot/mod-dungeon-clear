@@ -4,6 +4,7 @@
  */
 
 #include "DungeonClearActions.h"
+#include "Ai/Dungeon/DungeonClear/Util/DcPlayerbotCompat.h"
 #include "Ai/Dungeon/DungeonClear/Data/HealLeashRegistry.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcHazard.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcRun.h"
@@ -274,6 +275,9 @@ namespace DcActionShared
         // and the two leader-fight latches (leader-combat-since / party-engaged) —
         // in lockstep. See DcRunState. The pull preference/bool + daze revoke below
         // are deliberately separate (their pre-run lifetime differs).
+        bool const autonomous = DcRun::Of(ctx).autonomyRun != 0;
+        if (autonomous)
+            DcRun::Of(ctx).autonomyEnd = reason.substr(0, 160);
         DcRun::Of(ctx).Reset();
         if (bot)
         {
@@ -327,9 +331,11 @@ namespace DcActionShared
         // boost and is a no-op when the rate is already correct).
         if (bot)
         {
-            auto unboost = [](Player* p)
+            auto unboost = [autonomous](Player* p)
             {
-                if (p && p->IsInWorld() && GET_PLAYERBOT_AI(p))
+                if (p && p->IsInWorld() && GET_PLAYERBOT_AI(p) &&
+                    (!autonomous || (!DcPlayerbotCompat::IsHumanControlled(p) &&
+                                     !DcPlayerbotCompat::IsHumanControlled(GET_PLAYERBOT_AI(p)->GetMaster()))))
                     p->UpdateSpeed(MOVE_RUN, /*forced*/ true);
             };
             unboost(bot);

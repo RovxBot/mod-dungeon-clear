@@ -4,6 +4,7 @@
  */
 
 #include "DcStrandedRecovery.h"
+#include "Integration/DcAutonomyRuntime.h"
 
 #include "Ai/Dungeon/DungeonClear/Data/Events/DungeonEventTables.h"
 #include "Ai/Dungeon/DungeonClear/Data/DungeonBossInfo.h"
@@ -171,7 +172,7 @@ namespace DcStrandedRecovery
 {
     bool Enabled(Player* bot)
     {
-        return DcSettings::GetBool(bot, "StrandedRecovery");
+        return !DcAutonomy::Owns(bot) && DcSettings::GetBool(bot, "StrandedRecovery");
     }
 
     bool Evaluate(Player* bot)
@@ -253,6 +254,7 @@ namespace DcStrandedRecovery
 
     void Recover(Player* bot)
     {
+        if (DcAutonomy::Owns(bot)) return;
         if (!bot || bot->isDead())
             return;
 

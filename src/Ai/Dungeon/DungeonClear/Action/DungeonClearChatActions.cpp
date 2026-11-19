@@ -280,6 +280,13 @@ bool DcOnAction::Execute(Event event)
         DcRefuse(botAI, bot, "Not authorized to enable dungeon clear");
         return false;
     }
+    return Initialize(event.getParam(), event);
+}
+
+// Both callers reach the same initialization. Chat authorization remains in
+// Execute; the internal provider validates its operation permit before this call.
+bool DcOnAction::Initialize(std::string const& param, Event event)
+{
     // Party chat fans `dc on` out to every bot the master owns, so non-leader
     // bots land here too — non-tanks AND, in a raid, non-leader (off-)tanks.
     // They don't lead the clear, but they must follow the leader while it runs.
@@ -309,7 +316,7 @@ bool DcOnAction::Execute(Event event)
     // Wing choice first: on Blackrock Spire it decides which boss list the
     // emptiness check below (and the whole run) sees.
     DungeonWing const* runWing = nullptr;
-    if (!PickRunWing(botAI, bot, event.getParam(), runWing))
+    if (!PickRunWing(botAI, bot, param, runWing))
         return false;
 
     auto const& bosses = AI_VALUE(std::vector<DungeonBossInfo>, DcKey::DungeonBosses);
@@ -366,6 +373,8 @@ bool DcOnAction::Execute(Event event)
     }
 
     // Reset transient state and enable.
+    DcRun::Of(context).autonomyRun = 0;
+    DcRun::Of(context).autonomyEnd.clear();
     DcRun::Of(context).enabled = true;
     // Raid runs flip the non-interference contract (boss stand-down; see
     // DcRunState). Map::IsDungeon() was verified above, so this is the honest
