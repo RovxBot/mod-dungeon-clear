@@ -64,6 +64,16 @@ public:
     std::uint64_t Now() const override { return static_cast<std::uint64_t>(std::time(nullptr)); }
     std::string Validate(Permit const& p) const override
     {
+        // Context registration happens on DC's first world tick. An early or
+        // mismatched provider call must not dereference a missing run value.
+        for (auto guid : p.members)
+        {
+            auto* member = Find(guid);
+            auto* ai = member ? GET_PLAYERBOT_AI(member) : nullptr;
+            if (!ai || !ai->GetAiObjectContext() ||
+                !ai->GetAiObjectContext()->GetValue<DcRunState&>(DcKey::RunState))
+                return "dungeon_clear_context_unavailable";
+        }
         auto* leader = Find(p.leader);
         if (!Bot(leader))
             return "leader_missing_or_human";
