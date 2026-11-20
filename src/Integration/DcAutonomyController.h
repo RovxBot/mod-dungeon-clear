@@ -7,10 +7,6 @@
 
 namespace DcAutonomy
 {
-inline bool PilotCompleted(bool allClearedSignal, std::uint32_t encounterMask)
-{
-    return allClearedSignal && (encounterMask & 7u) == 7u;
-}
 // One pilot operation, bounded memory. Engine adapter supplies authoritative
 // evidence; this same controller is executed by the deterministic tests.
 class Port
@@ -41,7 +37,8 @@ public:
         auto now = _port.Now();
         std::set<std::uint32_t> unique(p.members.begin(), p.members.end());
         if (p.version != Version || !p.owner || !p.operation || !p.nonce || !p.revision || !p.group || !p.leader ||
-            !p.instance || p.map != 574 || p.difficulty != 0 || p.expires <= now || p.expires - now > 15 ||
+            !p.instance || !PilotAllowed(p.profileVersion, p.profile, p.map, p.difficulty, p.realmExpansion) ||
+            p.expires <= now || p.expires - now > 15 ||
             unique.size() != 5 || unique.count(0) || !unique.count(p.leader))
             return Refuse(p, "invalid_or_expired_permit");
         if (_held && !_status.quiescent)
@@ -81,7 +78,19 @@ public:
                 _status.quiescent = _port.Teardown(p);
             return _status;
         }
-        _status = _port.Observe(p);
+        auto observed = _port.Observe(p);
+        if (!Matches(observed, p))
+        {
+            observed = Identity(p);
+            observed.state = State::Failed;
+            observed.reason = "executor_observation_identity_mismatch";
+        }
+        if (observed.state == State::Completed && !PilotCompleted(true, observed.encounters, observed.requiredEncounters))
+        {
+            observed.state = State::Failed;
+            observed.reason = "terminal_missing_pilot_encounter_evidence";
+        }
+        _status = std::move(observed);
         _status.reason.resize(std::min<std::size_t>(_status.reason.size(), 160));
         if (Terminal(_status.state))
             _status.quiescent = _port.Teardown(p);
@@ -114,7 +123,7 @@ public:
         if (!_held || _status.quiescent || !_port.OnWorldThread())
             return;
         auto* owner = OwnerProvider.load(std::memory_order_acquire);
-        if (!_port.Enabled() || !owner || !owner->authorize || !owner->authorize(_permit, false) ||
+        if (!_port.Enabled() || !owner || owner->version != Version || !owner->authorize || !owner->authorize(_permit, false) ||
             !_port.Validate(_permit).empty())
             Stop(_permit);
         else
