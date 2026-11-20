@@ -12,6 +12,45 @@ broken equipped items. The conservative realm ceiling is Classic (60) or TBC
 are admission policy, not evidence the party can clear. Both owner and provider
 must select the same cap; `DungeonClear.Autonomy.MaxExpansion=0` is the default.
 `DungeonClear.Autonomy.Enable=0` remains the default.
+The expansion ceiling is an operator-supplied policy bound, not automatic
+discovery of realm progression, access unlocks or a progression module's state.
+Normal core/script access decisions remain independently required.
+
+Review correction: `PilotEquipmentReady` is the shared production predicate
+used by both autonomy's live pre-group/follower admission and provider launch.
+It requires an unbroken equipped main hand and rejects every broken equipped
+item even when the reported equipped average remains high. Other empty slots
+are permitted; this is not a new full-slot requirement for level-15 characters.
+`t/TestAutonomyEquipment.cpp` executes the predicate under C++17/C++20; the
+consumer's actual CoreGroupPort fixture verifies zero Create/Add calls for
+these failures for each of the five participants.
+
+## Actions investigation — 20 November 2026
+
+At original PR head `fad8a7691197f5be922f00d6cd2d3430e68dc48c`, GitHub's
+all-event Actions runs query and check-runs query both returned zero. The
+trusted workflow is active, has an unrestricted `pull_request` trigger, and
+its last master/past-PR runs succeeded. There is no skip-CI commit message.
+The permissions endpoint returned `enabled: true`, but an explicit dispatch
+of **only** `autonomy.yml` on `feat/m3a-classic-pilot` returned HTTP 422:
+`Actions has been disabled for this repository.` This is the observed remote
+blocker; the API discrepancy does not establish its administrative cause.
+No settings were changed and no general build workflow was dispatched.
+
+The corrected lightweight workflow checks out the exact PR head (rather than
+a synthetic merge), records its SHA, executes the four existing cheap checks,
+and runs source-shape contracts against core
+`0554bcdd664ff6d85291ca2a10fd31d3e37e89e6`, owner playerbots
+`696a009ceeeb400cfe40eedcd8a6c9333bdc1b59` and a frozen consumer/checker
+`e056193a07814872bf49d2f75fe9e650a73dd4a0`. Current consumer runtime/SQL
+tests are separate. These contracts do not compile/link the game server.
+
+The one-party entry/exit audit is tracked in the consumer's M3B prerequisite
+report. Portal movement is not enabled: normal-entry binding cleanup and a
+lease-preserving cleanup-login capability still need a reviewed recovery
+design. A high-level RFC party can supply integration smoke evidence only;
+at-level combat acceptance needs naturally eligible characters, actual combat
+and ordinary reward evidence. Neither is established by these source tests.
 
 ## Source audit
 

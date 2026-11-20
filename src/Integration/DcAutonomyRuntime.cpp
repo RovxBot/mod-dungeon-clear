@@ -153,13 +153,9 @@ public:
                 return "faction_mismatch";
             if (!PilotEligible(*profile, p.realmExpansion, m->GetLevel(), GET_PLAYERBOT_AI(m)->GetEquipGearScore(m)))
                 return "pilot_level_or_equipment_ineligible";
-            auto* weapon = m->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
-            if (!weapon || weapon->IsBroken())
+            if (!PilotEquipmentReady(m, INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND,
+                                     EQUIPMENT_SLOT_START, EQUIPMENT_SLOT_END))
                 return "pilot_equipment_missing_or_broken";
-            for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
-                if (auto* item = m->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-                    if (item->IsBroken())
-                        return "pilot_equipment_missing_or_broken";
             // loginCheck avoids the core's intentional ALREADY_IN_MAP refusal.
             if (sMapMgr->PlayerCannotEnter(profile->map, m, true) != Map::CAN_ENTER)
                 return "ordinary_instance_access_denied";

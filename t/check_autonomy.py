@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory(prefix='dc-autonomy-') as tmp:
     finish=runtime.index('\nclass EnginePort', begin)
     (Path(tmp)/'AutonomyEvidenceBody.h').write_text(runtime[begin:finish])
     for std in ('c++17','c++20'):
-        for src in (source,root/'t/TestAutonomyStandalone.cpp',root/'t/TestAutonomyEvidence.cpp'):
+        for src in (source,root/'t/TestAutonomyStandalone.cpp',root/'t/TestAutonomyEvidence.cpp',root/'t/TestAutonomyEquipment.cpp'):
             out=Path(tmp)/'test'
             subprocess.run(['c++','-std='+std,'-O2','-Wall','-Wextra','-Werror','-pedantic','-I'+str(root/'src'),'-I'+tmp,str(src),'-o',str(out)],check=True)
             subprocess.run([str(out)],check=True)

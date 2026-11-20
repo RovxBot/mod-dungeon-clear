@@ -46,6 +46,24 @@ inline bool PilotEligible(PilotProfile const& p, std::uint32_t realmExpansion,
     return PilotAllowed(p.version, p.id, p.map, p.difficulty, realmExpansion) &&
            level >= p.minLevel && level <= PilotMaxLevel(realmExpansion) && equippedItemLevel >= p.minItemLevel;
 }
+// Shared by pre-group admission and provider launch validation. A gear score
+// alone can hide a missing main hand or a broken item. Other empty slots are
+// allowed by this pilot; no equipment is granted or repaired here.
+template <class Character>
+bool PilotEquipmentReady(Character* player, std::uint8_t bag, std::uint8_t mainHand,
+                         std::uint8_t first, std::uint8_t end)
+{
+    if (!player)
+        return false;
+    auto* weapon = player->GetItemByPos(bag, mainHand);
+    if (!weapon || weapon->IsBroken())
+        return false;
+    for (auto slot = first; slot < end; ++slot)
+        if (auto* item = player->GetItemByPos(bag, slot))
+            if (item->IsBroken())
+                return false;
+    return true;
+}
 struct EncounterEvidence
 {
     std::uint32_t definition = 0, creature = 0, index = 32;
