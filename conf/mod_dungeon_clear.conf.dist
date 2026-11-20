@@ -2050,6 +2050,11 @@ DungeonClear.BgQueueFill.GearQuality = 0
 
 DungeonClear.BgQueueFill.LogoutOnRelease = 1
 
-# Internal M3A provider. No chat authorization changes; requires autonomy v1.
-# One already eligible five-bot group in Utgarde Keep normal; travel is separate.
+# Internal M3A provider. No chat authorization changes; requires autonomy v2.
+# One already eligible five-bot group in Ragefire Chasm normal; travel is separate.
 DungeonClear.Autonomy.Enable = 0
+# Independent trusted-pilot progression ceiling: 0 Classic, 1 TBC.
+# Operator-supplied limit only; this does not discover realm progression.
+# Must match the autonomy owner. Values above TBC are refused by this release.
+# Normal core/script access restrictions still apply to every participant.
+DungeonClear.Autonomy.MaxExpansion = 0

@@ -21,6 +21,8 @@ struct Fake final : Port
     bool world = true, enabled = true, initialize = true, stop = true;
     std::uint64_t now = 100;
     unsigned starts = 0, stops = 0;
+    unsigned mask = 15, required = 15;
+    bool mismatch = false;
     std::string rejection;
     State state = State::Running;
     bool OnWorldThread() const override { return world; }
@@ -38,7 +40,10 @@ struct Fake final : Port
         s.state = state;
         s.reason = "actual_engine_observation";
         s.lastProgress = now;
-        s.encounters = 3;
+        s.encounters = mask;
+        s.requiredEncounters = required;
+        if (mismatch)
+            ++s.instance;
         return s;
     }
     bool Teardown(Permit const&) override
@@ -57,7 +62,10 @@ Permit Make()
     p.expires = 110;
     p.group = 20;
     p.leader = 1;
-    p.map = 574;
+    p.map = 389;
+    p.profileVersion = PilotVersion;
+    p.profile = RagefirePilot;
+    p.realmExpansion = 1;
     p.instance = 30;
     p.members = {1, 2, 3, 4, 5};
     issued = p;
@@ -68,8 +76,33 @@ Permit Make()
 } // namespace
 int main()
 {
-    assert(!PilotCompleted(true, 0) && !PilotCompleted(true, 1) && !PilotCompleted(true, 3));
-    assert(!PilotCompleted(false, 7) && PilotCompleted(true, 7));
+    for (unsigned mask = 0; mask < 15; ++mask)
+        assert(!PilotCompleted(true, mask, 15));
+    assert(!PilotCompleted(false, 15, 15) && PilotCompleted(true, 15, 15));
+    assert(!PilotCompleted(true, 7, 7) && !PilotCompleted(true, 15, 0));
+    assert(PilotCompleted(true, 0x80000015u, 0x80000015u));
+    assert(FindPilot(PilotVersion, RagefirePilot) == &Ragefire);
+    assert(!FindPilot(0, 1) && !FindPilot(PilotVersion, 0) && !FindPilot(PilotVersion, 2));
+    for (auto cap : {0u, 1u})
+    {
+        assert(PilotAllowed(PilotVersion, RagefirePilot, 389, 0, cap));
+        assert(!PilotAllowed(PilotVersion, RagefirePilot, 574, 0, cap));
+        assert(!PilotAllowed(PilotVersion, RagefirePilot, 34, 0, cap));
+        assert(!PilotAllowed(PilotVersion, RagefirePilot, 389, 1, cap));
+        assert(PilotEligible(Ragefire, cap, 15, 13));
+        assert(!PilotEligible(Ragefire, cap, 14, 13));
+        assert(!PilotEligible(Ragefire, cap, 15, 12));
+        assert(PilotEligible(Ragefire, cap, PilotMaxLevel(cap), 115));
+        assert(!PilotEligible(Ragefire, cap, PilotMaxLevel(cap) + 1, 115));
+    }
+    assert(!PilotAllowed(PilotVersion, RagefirePilot, 389, 0, 2));
+    assert(!PilotEligible(Ragefire, 2, 80, 200));
+    Executor incompatible{1, nullptr, nullptr, nullptr};
+    assert(!RegisterExecutor(&incompatible));
+    ExecutorProvider = &incompatible;
+    assert(!GetExecutor());
+    ExecutorProvider = nullptr;
+    assert(!GetExecutor());
     Owner const owner{Version, Authorize};
     OwnerProvider = nullptr;
     {
@@ -80,7 +113,7 @@ int main()
     assert(RegisterOwner(&owner));
     Owner other{Version, Authorize};
     assert(!RegisterOwner(&other));
-    for (unsigned fault = 0; fault < 16; ++fault)
+    for (unsigned fault = 0; fault < 20; ++fault)
     {
         Fake f;
         Controller c(f);
@@ -94,7 +127,7 @@ int main()
             p.expires = 116;
             break;
         case 2:
-            p.version = 2;
+            p.version = 1;
             break;
         case 3:
             p.owner = 99;
@@ -132,6 +165,18 @@ int main()
         case 14:
             valid = false;
             break;
+        case 16:
+            p.profile = 0;
+            break;
+        case 17:
+            p.profileVersion = 2;
+            break;
+        case 18:
+            p.realmExpansion = 2;
+            break;
+        case 19:
+            p.map = 574;
+            break;
         case 15:
             f.rejection = "wrong_authoritative_roster_or_control";
             break;
@@ -154,6 +199,21 @@ int main()
         assert(stopped.quiescent && (Terminal(state) ? stopped.state == state : stopped.state == State::Stopped));
         auto count = f.stops;
         assert(c.Stop(p).quiescent && f.stops == count);
+    }
+    for (unsigned mask = 0; mask < 15; ++mask)
+    {
+        Fake f;
+        Controller c(f);
+        f.state = State::Completed;
+        f.mask = mask;
+        auto s = c.Start(Make());
+        assert(s.state == State::Failed && s.quiescent && f.stops == 1);
+    }
+    {
+        Fake f;
+        Controller c(f);
+        f.mismatch = true;
+        assert(c.Start(Make()).reason == "executor_observation_identity_mismatch");
     }
     {
         Fake f;

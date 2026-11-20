@@ -107,6 +107,7 @@ inline constexpr DcSettingDef kDcSettings[] =
     { "Enable",                DcType::Bool,   1,   0,   1,  false },
     // Internal provider gate; never accepts addon overrides.
     { "Autonomy.Enable",       DcType::Bool,   0,   0,   1,  false },
+    { "Autonomy.MaxExpansion", DcType::UInt,   0,   0,   2,  false },
 
     { "LootMinQuality",        DcType::UInt,   0,   0,   6,  true  },
 

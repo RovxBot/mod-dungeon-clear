@@ -3,19 +3,23 @@
 
 #include "Ai/Dungeon/DungeonClear/Action/DcActionShared.h"
 #include "Ai/Dungeon/DungeonClear/Action/DungeonClearChatActions.h"
+#include "Ai/Dungeon/DungeonClear/Data/BossSpawnIndex.h"
 #include "Ai/Dungeon/DungeonClear/Settings/DcSettings.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcLeaderSignal.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcPlayerbotCompat.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcRun.h"
 #include "Ai/Dungeon/DungeonClear/Util/DcRunProgress.h"
 #include "DcModuleEnable.h"
+#include "DBCStructure.h"
 #include "Group.h"
 #include "InstanceScript.h"
+#include "Item.h"
 #include "LFGMgr.h"
 #include "Map.h"
 #include "MapMgr.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "PlayerbotAI.h"
 #include "Playerbots.h"
@@ -49,6 +53,37 @@ bool Bot(Player* p)
     return p && ai && !p->IsGameMaster() && !DcPlayerbotCompat::IsHumanControlled(p) &&
            !DcPlayerbotCompat::IsHumanControlled(ai->GetMaster());
 }
+std::uint32_t RequiredMask(PilotProfile const& profile)
+{
+    auto const* definitions = sObjectMgr->GetDungeonEncounterList(profile.map, Difficulty(profile.difficulty));
+    if (!definitions || definitions->size() != profile.encounters.size())
+        return 0;
+    std::array<EncounterEvidence, 4> evidence{};
+    std::size_t at = 0;
+    for (auto const* row : *definitions)
+    {
+        if (!row || !row->dbcEntry || row->dbcEntry->mapId != profile.map ||
+            row->dbcEntry->difficulty != profile.difficulty)
+            return 0;
+        evidence[at++] = {row->dbcEntry->id, row->creditEntry, row->dbcEntry->encounterIndex,
+                          row->creditType == ENCOUNTER_CREDIT_KILL_CREATURE};
+    }
+    auto mask = PilotEncounterMask(profile, evidence);
+    auto const& anchors = BossSpawnIndex::Get(profile.map, Difficulty(profile.difficulty));
+    if (!mask || anchors.size() != evidence.size())
+        return 0;
+    for (auto const& row : evidence)
+    {
+        unsigned matches = 0;
+        for (auto const& anchor : anchors)
+            matches += anchor.mapId == profile.map && anchor.entry == row.creature &&
+                       anchor.encounterIndex == row.index && anchor.kind == DungeonAnchorKind::Boss &&
+                       !anchor.skipByDesign;
+        if (matches != 1)
+            return 0;
+    }
+    return mask;
+}
 class EnginePort final : public Port
 {
 public:
@@ -64,6 +99,11 @@ public:
     std::uint64_t Now() const override { return static_cast<std::uint64_t>(std::time(nullptr)); }
     std::string Validate(Permit const& p) const override
     {
+        auto const* profile = FindPilot(p.profileVersion, p.profile);
+        if (!profile || !PilotAllowed(p.profileVersion, p.profile, p.map, p.difficulty, p.realmExpansion))
+            return "unsupported_pilot_profile";
+        if (p.realmExpansion != DcSettings::GetUInt(ObjectGuid::Empty, "Autonomy.MaxExpansion"))
+            return "realm_progression_cap_mismatch";
         // Context registration happens on DC's first world tick. An early or
         // mismatched provider call must not dereference a missing run value.
         for (auto guid : p.members)
@@ -85,15 +125,18 @@ public:
         if (!PlayerbotAI::IsTank(leader) || DcLeaderSignal::FindLeaderTank(leader) != leader)
             return "selected_tank_not_dc_leader";
         if (!leader->GetMap() || !leader->GetMap()->IsDungeon() || leader->GetMap()->IsRaid() ||
-            leader->GetMapId() != 574 || leader->GetInstanceId() != p.instance ||
+            leader->GetMapId() != profile->map || leader->GetInstanceId() != p.instance ||
             leader->GetMap()->GetDifficulty() != DUNGEON_DIFFICULTY_NORMAL)
             return "unsupported_map_instance_or_difficulty";
         auto* instance = leader->GetInstanceScript();
         if (!instance)
             return "instance_script_unavailable";
+        auto required = RequiredMask(*profile);
+        if (!required)
+            return "pilot_encounter_definitions_or_spawns_incompatible";
         if (DcRun::Of(GET_PLAYERBOT_AI(leader)).autonomyRun != p.nonce &&
-            (instance->GetCompletedEncounterMask() & 7u) == 7u)
-            return "pilot_instance_already_cleared";
+            (instance->GetCompletedEncounterMask() & required))
+            return "pilot_instance_not_fresh";
         unsigned tanks = 0, heals = 0, dps = 0;
         for (auto guid : p.members)
         {
@@ -108,8 +151,13 @@ public:
             dps += PlayerbotAI::IsDps(m);
             if (m->GetTeamId() != leader->GetTeamId())
                 return "faction_mismatch";
+            if (!PilotEligible(*profile, p.realmExpansion, m->GetLevel(), GET_PLAYERBOT_AI(m)->GetEquipGearScore(m)))
+                return "pilot_level_or_equipment_ineligible";
+            if (!PilotEquipmentReady(m, INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND,
+                                     EQUIPMENT_SLOT_START, EQUIPMENT_SLOT_END))
+                return "pilot_equipment_missing_or_broken";
             // loginCheck avoids the core's intentional ALREADY_IN_MAP refusal.
-            if (sMapMgr->PlayerCannotEnter(574, m, true) != Map::CAN_ENTER)
+            if (sMapMgr->PlayerCannotEnter(profile->map, m, true) != Map::CAN_ENTER)
                 return "ordinary_instance_access_denied";
             auto const& run = DcRun::Of(GET_PLAYERBOT_AI(m));
             if (run.enabled && run.autonomyRun != p.nonce)
@@ -165,13 +213,16 @@ public:
         }
         auto* instance = leader->GetInstanceScript();
         s.encounters = instance ? instance->GetCompletedEncounterMask() : 0;
+        auto const* profile = FindPilot(p.profileVersion, p.profile);
+        s.requiredEncounters = profile ? RequiredMask(*profile) : 0;
         if (!run.enabled)
         {
-            bool complete = PilotCompleted(run.autonomyEnd == DcActionShared::kReasonAllCleared, s.encounters);
+            bool complete = PilotCompleted(run.autonomyEnd == DcActionShared::kReasonAllCleared,
+                                           s.encounters, s.requiredEncounters);
             s.state = complete ? State::Completed : State::Failed;
             s.reason = run.autonomyEnd.empty() ? "disabled_without_success_evidence" : run.autonomyEnd;
             if (!complete && run.autonomyEnd == DcActionShared::kReasonAllCleared)
-                s.reason = "terminal_missing_three_boss_completion_bits";
+                s.reason = "terminal_missing_pilot_encounter_evidence";
         }
         else
         {

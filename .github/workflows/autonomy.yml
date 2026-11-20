@@ -11,7 +11,54 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Validate the PR source itself, not GitHub's synthetic merge tree.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record exact provider source
+        run: git rev-parse HEAD
       - run: python3 t/check_autonomy.py
       - run: python3 tools/check_config_reads.py
       - run: python3 tools/check_msvc_portability.py
       - run: bash tools/check_determinism.sh
+      - uses: actions/checkout@v4
+        with:
+          repository: mod-playerbots/azerothcore-wotlk
+          ref: 0554bcdd664ff6d85291ca2a10fd31d3e37e89e6
+          path: _deps/core
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            src/cmake/ac_macros.cmake
+            modules/CMakeLists.txt
+            src/server/game/Scripting/ScriptDefines/WorldScript.h
+            src/common/Configuration/Config.h
+      - uses: actions/checkout@v4
+        with:
+          repository: RovxBot/mod-playerbots
+          ref: 696a009ceeeb400cfe40eedcd8a6c9333bdc1b59
+          path: _deps/playerbots
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            src/Bot/RandomPlayerbotMgr.cpp
+      - uses: actions/checkout@v4
+        with:
+          # Frozen consumer source-shape checker; current consumer runtime is
+          # independently tested by its own PR. No build is invoked here.
+          repository: RovxBot/mod-playerbot-autonomy
+          ref: e056193a07814872bf49d2f75fe9e650a73dd4a0
+          path: _deps/autonomy
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            tools/check_integration_contracts.py
+            CMakeLists.txt
+            src/mod_playerbot_autonomy_loader.cpp
+            src/AutonomyModule.cpp
+            conf/mod_playerbot_autonomy.conf.dist
+      - name: Pinned source contracts (no compilation or startup)
+        run: |
+          python3 _deps/autonomy/tools/check_integration_contracts.py \
+            --core _deps/core --playerbots _deps/playerbots \
+            --dungeon-clear . --autonomy _deps/autonomy
