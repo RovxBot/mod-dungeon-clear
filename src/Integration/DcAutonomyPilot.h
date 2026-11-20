@@ -6,6 +6,8 @@
 
 namespace DcAutonomy
 {
+inline namespace V2
+{
 inline constexpr std::uint32_t PilotVersion = 1;
 inline constexpr std::uint32_t RagefirePilot = 1;
 struct RequiredEncounter
@@ -79,5 +81,6 @@ inline bool PilotCompleted(bool allClearedSignal, std::uint32_t encounterMask, s
         ++count;
     return allClearedSignal && count == Ragefire.encounters.size() && (encounterMask & requiredMask) == requiredMask;
 }
+} // namespace V2
 } // namespace DcAutonomy
 #endif

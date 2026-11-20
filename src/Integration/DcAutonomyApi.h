@@ -11,6 +11,10 @@
 // after map workers have joined. Registration is process-lifetime, single owner.
 namespace DcAutonomy
 {
+// Separate symbols and types from v1: an older compiled module must never
+// interpret a v2 Permit/Executor using the previous object layout.
+inline namespace V2
+{
 inline constexpr std::uint32_t Version = 2;
 struct Permit
 {
@@ -106,5 +110,6 @@ inline Executor const* GetExecutor()
     auto* p = ExecutorProvider.load(std::memory_order_acquire);
     return p && p->version == Version && p->start && p->status && p->stop ? p : nullptr;
 }
+} // namespace V2
 } // namespace DcAutonomy
 #endif

@@ -7,6 +7,8 @@
 
 namespace DcAutonomy
 {
+inline namespace V2
+{
 // One pilot operation, bounded memory. Engine adapter supplies authoritative
 // evidence; this same controller is executed by the deterministic tests.
 class Port
@@ -153,5 +155,6 @@ private:
     Permit _permit;
     Status _status;
 };
+} // namespace V2
 } // namespace DcAutonomy
 #endif
